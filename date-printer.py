@@ -155,17 +155,51 @@ def print_label(image, printer_name):
     try:
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(printer_name)
+        
+        # Get printer dimensions and DPI
+        printer_width = hDC.GetDeviceCaps(110)  # PHYSICALWIDTH
+        printer_height = hDC.GetDeviceCaps(111)  # PHYSICALHEIGHT
+        printer_dpi_x = hDC.GetDeviceCaps(88)   # LOGPIXELSX
+        printer_dpi_y = hDC.GetDeviceCaps(90)   # LOGPIXELSY
+        
+        # Calculate the actual printable area
+        printable_width = hDC.GetDeviceCaps(8)   # HORZRES
+        printable_height = hDC.GetDeviceCaps(10)  # VERTRES
+        offset_x = hDC.GetDeviceCaps(112)  # PHYSICALOFFSETX
+        offset_y = hDC.GetDeviceCaps(113)  # PHYSICALOFFSETY
+        
+        print(f"\n=== Printer Info ===")
+        print(f"Printer DPI: {printer_dpi_x}x{printer_dpi_y}")
+        print(f"Physical size: {printer_width}x{printer_height}")
+        print(f"Printable area: {printable_width}x{printable_height}")
+        print(f"Offsets: x={offset_x}, y={offset_y}")
+        
+        # Calculate scaling to fit the label
+        # Convert our label dimensions to printer pixels
+        label_width_printer_px = int(LABEL_WIDTH_IN * printer_dpi_x)
+        label_height_printer_px = int(LABEL_HEIGHT_IN * printer_dpi_y)
+        
         hDC.StartDoc('Label')
         hDC.StartPage()
+        
+        # Create the DIB and draw it at the correct size
         dib = ImageWin.Dib(image)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, width_px, height_px))
+        
+        # Draw the image scaled to the label size in printer coordinates
+        # Use negative offset values to account for printer margins
+        dib.draw(hDC.GetHandleOutput(), 
+                (-offset_x, -offset_y, label_width_printer_px - offset_x, label_height_printer_px - offset_y))
+        
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
+        print(f"Drew at printer coordinates: (0, 0, {label_width_printer_px}, {label_height_printer_px})")
         return True
     except Exception as e:
         print(f"Printing failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 if __name__ == "__main__":
