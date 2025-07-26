@@ -8,6 +8,7 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont, ImageWin
 import win32print
 import win32ui
+import win32con
 
 # --- USER SETTINGS ---
 BLUETOOTH_DEVICE_NAME = "RW402B-20B0"  # As seen in Bluetooth Settings
@@ -77,6 +78,7 @@ def reconnect_bluetooth_device(device_name):
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
 def generate_label_image(date_str, date_obj):
+    # Always create at a standard resolution for consistency
     width_px = int(LABEL_WIDTH_IN * DPI)
     height_px = int(LABEL_HEIGHT_IN * DPI)
     image = Image.new('L', (width_px, height_px), 255)
@@ -174,35 +176,27 @@ def print_label(image, printer_name):
         print(f"Printable area: {printable_width}x{printable_height}")
         print(f"Offsets: x={offset_x}, y={offset_y}")
         
-        # Calculate scaling to fit the label
-        # Our image is created at DPI (300), but printer might have different DPI
-        scale_x = printer_dpi_x / DPI
-        scale_y = printer_dpi_y / DPI
-        
-        # Calculate destination size
-        dest_width = int(width_px * scale_x)
-        dest_height = int(height_px * scale_y)
-        
-        print(f"Scaling: {scale_x}x (horizontal), {scale_y}x (vertical)")
-        print(f"Destination size: {dest_width}x{dest_height}")
-        
         hDC.StartDoc('Label')
         hDC.StartPage()
         
-        # Create the DIB and draw it at the correct size
+        # Set mapping mode to match pixels 1:1
+        hDC.SetMapMode(win32con.MM_TEXT)
+        
+        # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Draw the image with proper scaling
-        # The coordinates are (left, top, right, bottom)
+        # Draw the image at actual pixel size without scaling
+        # The printer driver will handle the DPI conversion
         dib.draw(hDC.GetHandleOutput(), 
-                (0, 0, dest_width, dest_height))
+                (0, 0, width_px, height_px))
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
-        print(f"Image size: {width_px}x{height_px} at {DPI} DPI")
-        print(f"Drew at coordinates: (0, 0, {dest_width}, {dest_height})")
+        print(f"Image size: {width_px}x{height_px} pixels (created at {DPI} DPI)")
+        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
+        print(f"Expected physical size: {LABEL_WIDTH_IN}x{LABEL_HEIGHT_IN} inches")
         return True
     except Exception as e:
         print(f"Printing failed: {e}")
