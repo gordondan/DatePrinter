@@ -3,6 +3,7 @@ import subprocess
 import json
 import os
 import sys
+import argparse
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont, ImageWin
 import win32print
@@ -14,11 +15,11 @@ PRINTER_NAME = "Munbyn RW402B(Bluetooth)"                     # As seen in print
 LABEL_WIDTH_IN, LABEL_HEIGHT_IN = 2.25, 1.25                 # Inches
 DPI = 300
 FONT_PATH = "C:/Windows/Fonts/arialbd.ttf"                   # Bold font path
-DATE_FORMAT = "%Y-%m-%d"
+DATE_FORMAT = "%b %d"  # e.g., "Jan 26"
 MAX_RETRIES = 6
 WAIT_BETWEEN_TRIES = 5  # Seconds
 CONFIG_FILE = "printer-config.json"
-TEXT_HEIGHT_RATIO = 0.3  # Text fills 30% of label height for smaller text
+TEXT_HEIGHT_RATIO = 0.2  # Text fills 20% of label height for even smaller text
 
 def load_config():
     """Load configuration from JSON file"""
@@ -106,34 +107,39 @@ def print_label(image, printer_name):
         return False
 
 if __name__ == "__main__":
-    # Check for command line arguments
-    force_list = "--list" in sys.argv or "-l" in sys.argv
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Print date labels on a label printer')
+    parser.add_argument('-l', '--list', action='store_true', help='Force printer selection menu')
+    parser.add_argument('-c', '--count', type=int, default=1, help='Number of labels to print (default: 1)')
+    args = parser.parse_args()
     
     # Load configuration
     config = load_config()
     default_printer = config.get("default_printer", None)
     
-    # Step 1: List printers and allow selection
-    printers = list_printers()
-    
-    if not printers:
-        print("No printers found!")
-        exit(1)
-    
-    # Use default printer if available and not forcing list
+    # Step 1: Get printer selection
     selected_printer = None
-    if default_printer and not force_list:
-        # Check if default printer still exists
-        printer_names = [p[2] for p in printers]
+    
+    # If we have a default and not forcing list, try to use it
+    if default_printer and not args.list:
+        # Get all printers to verify default still exists
+        all_printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
+        printer_names = [p[2] for p in all_printers]
+        
         if default_printer in printer_names:
             selected_printer = default_printer
-            print(f"\nUsing default printer: {selected_printer}")
+            print(f"Using default printer: {selected_printer}")
         else:
-            print(f"\nDefault printer '{default_printer}' not found.")
+            print(f"Default printer '{default_printer}' not found.")
             default_printer = None
     
-    # Ask user to select a printer if no valid default or forcing list
-    if not selected_printer or force_list:
+    # If no valid default or forcing list, show selection menu
+    if not selected_printer:
+        printers = list_printers()
+        
+        if not printers:
+            print("No printers found!")
+            exit(1)
         while True:
             try:
                 selection = input("\nEnter the number of the printer you want to use: ")
@@ -161,16 +167,28 @@ if __name__ == "__main__":
     # Step 3: Generate the label image
     date_str = datetime.now().strftime(DATE_FORMAT)
     label_img = generate_label_image(date_str)
-    print("Label image generated (preview saved as label_preview.png)")
+    print(f"Label image generated for: {date_str}")
 
-    # Step 4: Try printing, with retries
-    for attempt in range(MAX_RETRIES):
-        print(f"Print attempt {attempt + 1} of {MAX_RETRIES}...")
-        success = print_label(label_img, selected_printer)
-        if success:
-            break
+    # Step 4: Print the requested number of labels
+    print(f"\nPrinting {args.count} label(s)...")
+    
+    for label_num in range(1, args.count + 1):
+        if args.count > 1:
+            print(f"\nLabel {label_num} of {args.count}:")
+        
+        # Try printing with retries
+        for attempt in range(MAX_RETRIES):
+            print(f"  Print attempt {attempt + 1} of {MAX_RETRIES}...")
+            success = print_label(label_img, selected_printer)
+            if success:
+                if label_num < args.count:
+                    time.sleep(1)  # Brief pause between labels
+                break
+            else:
+                print(f"  Retrying in {WAIT_BETWEEN_TRIES} seconds...")
+                time.sleep(WAIT_BETWEEN_TRIES)
         else:
-            print(f"Retrying in {WAIT_BETWEEN_TRIES} seconds...")
-            time.sleep(WAIT_BETWEEN_TRIES)
-    else:
-        print("Failed to print after multiple attempts. Is the printer powered on, paired, and connected?")
+            print("Failed to print after multiple attempts. Is the printer powered on, paired, and connected?")
+            exit(1)
+    
+    print(f"\nSuccessfully printed {args.count} label(s).")
