@@ -10,55 +10,100 @@ import win32print
 import win32ui
 import win32con
 
-# --- DEFAULT SETTINGS ---
+# --- CONFIGURATION ---
 CONFIG_FILE = "printer-config.json"
 
-# Default values (can be overridden by config file)
+# Default configuration structure
 DEFAULT_CONFIG = {
+    # Global settings
     "default_printer": None,
-    "bluetooth_device_name": "RW402B-20B0",
-    "label_width_in": 2.25,
-    "label_height_in": 1.25,
-    "dpi": 203,
-    "font_path": "C:/Windows/Fonts/arialbd.ttf",
     "date_format": "%B %d, %Y",
+    "font_path": "C:/Windows/Fonts/arialbd.ttf",
     "max_retries": 6,
     "wait_between_tries": 5,
-    "bottom_margin": 15
-}
-
-# Month-specific size ratios (longer month names get smaller text)
-MONTH_SIZE_RATIOS = {
-    "January": 0.15,
-    "February": 0.14,
-    "March": 0.18,
-    "April": 0.18,
-    "May": 0.20,
-    "June": 0.19,
-    "July": 0.19,
-    "August": 0.16,
-    "September": 0.13,
-    "October": 0.15,
-    "November": 0.14,
-    "December": 0.14
+    "pause_between_labels": 1,  # seconds between multiple labels
+    
+    # Font size settings
+    "min_font_size": 10,
+    "max_font_size": 500,
+    "max_text_width_ratio": 0.85,  # Use 85% of label width
+    "default_text_height_ratio": 0.15,  # Default if month not specified
+    
+    # Month-specific size ratios (longer month names get smaller text)
+    "month_size_ratios": {
+        "January": 0.15,
+        "February": 0.14,
+        "March": 0.18,
+        "April": 0.18,
+        "May": 0.20,
+        "June": 0.19,
+        "July": 0.19,
+        "August": 0.16,
+        "September": 0.13,
+        "October": 0.15,
+        "November": 0.14,
+        "December": 0.14
+    },
+    
+    # Printer-specific settings (indexed by printer name)
+    "printers": {
+        "Munbyn RW402B(Bluetooth)": {
+            "bluetooth_device_name": "RW402B-20B0",
+            "label_width_in": 2.25,
+            "label_height_in": 1.25,
+            "dpi": 203,
+            "bottom_margin": 15,
+            "bluetooth_wait_time": 3  # seconds to wait after bluetooth connection
+        }
+    }
 }
 
 def load_config():
     """Load configuration from JSON file with defaults"""
-    config = DEFAULT_CONFIG.copy()
+    # Deep copy the default config to avoid modifying the original
+    config = json.loads(json.dumps(DEFAULT_CONFIG))
+    
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
                 saved_config = json.load(f)
-                config.update(saved_config)
-        except:
-            pass
+                # Merge saved config with defaults
+                for key, value in saved_config.items():
+                    if key == "printers" and isinstance(value, dict):
+                        # Merge printer-specific settings
+                        if "printers" not in config:
+                            config["printers"] = {}
+                        config["printers"].update(value)
+                    elif key == "month_size_ratios" and isinstance(value, dict):
+                        # Merge month ratios
+                        config["month_size_ratios"].update(value)
+                    else:
+                        config[key] = value
+        except Exception as e:
+            print(f"Warning: Could not load config file: {e}")
+    
     return config
 
 def save_config(config):
     """Save configuration to JSON file"""
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=2)
+
+def get_printer_config(config, printer_name):
+    """Get printer-specific configuration, creating default if needed"""
+    if printer_name not in config.get("printers", {}):
+        # Create default printer config
+        if "printers" not in config:
+            config["printers"] = {}
+        config["printers"][printer_name] = {
+            "label_width_in": 2.25,
+            "label_height_in": 1.25,
+            "dpi": 203,
+            "bottom_margin": 15,
+            "bluetooth_device_name": "",
+            "bluetooth_wait_time": 3
+        }
+    return config["printers"][printer_name]
 
 def list_printers():
     print("Available Printers:")
@@ -84,24 +129,24 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj, config):
-    # Create image based on config settings
-    width_px = int(config['label_width_in'] * config['dpi'])
-    height_px = int(config['label_height_in'] * config['dpi'])
+def generate_label_image(date_str, date_obj, config, printer_config):
+    # Create image based on printer-specific settings
+    width_px = int(printer_config['label_width_in'] * printer_config['dpi'])
+    height_px = int(printer_config['label_height_in'] * printer_config['dpi'])
     image = Image.new('L', (width_px, height_px), 255)
     draw = ImageDraw.Draw(image)
 
     # Get month-specific size ratio
     month_name = date_obj.strftime("%B")
-    text_height_ratio = MONTH_SIZE_RATIOS.get(month_name, 0.15)
+    text_height_ratio = config['month_size_ratios'].get(month_name, config['default_text_height_ratio'])
     
     # Calculate maximum dimensions
     max_text_height = int(height_px * text_height_ratio)
-    max_text_width = int(width_px * 0.85)  # Use 85% of label width for safety
+    max_text_width = int(width_px * config['max_text_width_ratio'])
     
     # Find the right font size
-    font_size = 10
-    for size in range(10, 500):
+    font_size = config['min_font_size']
+    for size in range(config['min_font_size'], config['max_font_size']):
         font = ImageFont.truetype(config['font_path'], size)
         # Use textbbox to get accurate text dimensions
         bbox = draw.textbbox((0, 0), date_str, font=font)
@@ -130,7 +175,7 @@ def generate_label_image(date_str, date_obj, config):
     
     # For vertical positioning at bottom with margin
     # We want the bottom of the text to be bottom_margin pixels from the bottom
-    y = height_px - config['bottom_margin'] - text_height
+    y = height_px - printer_config['bottom_margin'] - text_height
     
     # Calculate the actual drawing position
     draw_x = x - bbox[0]
@@ -153,13 +198,13 @@ def generate_label_image(date_str, date_obj, config):
     print(f"Final draw position: ({draw_x}, {draw_y})")
     print(f"Label dimensions: {width_px}x{height_px}")
     print(f"Text will occupy: x={draw_x} to x={draw_x + text_width}")
-    print(f"Bottom margin: {config['bottom_margin']}px")
+    print(f"Bottom margin: {printer_config['bottom_margin']}px")
     
     image.save("label_preview.png")  # Optional preview
     return image
 
 
-def print_label(image, printer_name, config):
+def print_label(image, printer_name, config, printer_config):
     width_px, height_px = image.size
     try:
         hDC = win32ui.CreateDC()
@@ -194,21 +239,21 @@ def print_label(image, printer_name, config):
         
         # The printer is centering on the left edge, so we need to shift by half the label width
         # Calculate half the label width in pixels
-        half_label_width = int(config['label_width_in'] * config['dpi'] / 2)
+        half_label_width = int(printer_config['label_width_in'] * printer_config['dpi'] / 2)
         
         # Draw with the image shifted right by half the label width
         dib.draw(hDC.GetHandleOutput(), 
                 (half_label_width, 0, half_label_width + width_px, height_px))
         
-        print(f"Applied horizontal offset: {half_label_width}px (half of {config['label_width_in']}\" at {config['dpi']} DPI)")
+        print(f"Applied horizontal offset: {half_label_width}px (half of {printer_config['label_width_in']}\" at {printer_config['dpi']} DPI)")
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
-        print(f"Image size: {width_px}x{height_px} pixels (created at {config['dpi']} DPI)")
+        print(f"Image size: {width_px}x{height_px} pixels (created at {printer_config['dpi']} DPI)")
         print(f"Drew at coordinates: ({half_label_width}, 0, {half_label_width + width_px}, {height_px})")
-        print(f"Expected physical size: {config['label_width_in']}x{config['label_height_in']} inches")
+        print(f"Expected physical size: {printer_config['label_width_in']}x{printer_config['label_height_in']} inches")
         return True
     except Exception as e:
         print(f"Printing failed: {e}")
@@ -268,11 +313,14 @@ if __name__ == "__main__":
             except ValueError:
                 print("Please enter a valid number")
 
+    # Get printer-specific configuration
+    printer_config = get_printer_config(config, selected_printer)
+    
     # Step 2: Try to connect to Bluetooth printer (best effort)
-    if config['bluetooth_device_name']:
-        reconnect_bluetooth_device(config['bluetooth_device_name'])
+    if printer_config['bluetooth_device_name']:
+        reconnect_bluetooth_device(printer_config['bluetooth_device_name'])
         print("Waiting for Bluetooth device to connect...")
-        time.sleep(3)  # Give time to connect
+        time.sleep(printer_config['bluetooth_wait_time'])
 
     # Step 3: Generate the label image
     if args.date:
@@ -288,7 +336,7 @@ if __name__ == "__main__":
         date_obj = datetime.now()
         date_str = date_obj.strftime(config['date_format'])
     
-    label_img = generate_label_image(date_str, date_obj, config)
+    label_img = generate_label_image(date_str, date_obj, config, printer_config)
     print(f"Label image generated for: {date_str}")
 
     # Step 4: Print the requested number of labels
@@ -301,10 +349,10 @@ if __name__ == "__main__":
         # Try printing with retries
         for attempt in range(config['max_retries']):
             print(f"  Print attempt {attempt + 1} of {config['max_retries']}...")
-            success = print_label(label_img, selected_printer, config)
+            success = print_label(label_img, selected_printer, config, printer_config)
             if success:
                 if label_num < args.count:
-                    time.sleep(1)  # Brief pause between labels
+                    time.sleep(config['pause_between_labels'])
                 break
             else:
                 print(f"  Retrying in {config['wait_between_tries']} seconds...")
