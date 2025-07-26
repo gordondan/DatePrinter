@@ -107,28 +107,33 @@ def generate_label_image(date_str, date_obj):
     # Use the determined font size
     font = ImageFont.truetype(FONT_PATH, font_size)
     
-    # Get text dimensions - textbbox returns (left, top, right, bottom)
-    # We need to use (0, 0) as the anchor point to get proper dimensions
+    # Get text dimensions using textbbox
+    # textbbox returns absolute coordinates of the bounding box
     bbox = draw.textbbox((0, 0), date_str, font=font)
+    
+    # Calculate actual text width and height
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
     
-    # The bbox[0] and bbox[1] values represent the offset from the anchor point
-    # We need to account for these when positioning
+    # For horizontal centering, we need to center the text within the label
+    # Since bbox[0] might be negative (for characters extending left), we account for it
+    x = (width_px - text_width) // 2
     
-    # Center horizontally - account for left offset
-    x = (width_px - text_width) // 2 - bbox[0]
+    # For vertical positioning at bottom with margin
+    # We want the bottom of the text to be BOTTOM_MARGIN pixels from the bottom
+    y = height_px - BOTTOM_MARGIN - text_height
     
-    # Position at bottom with margin - account for top offset
-    y = height_px - BOTTOM_MARGIN - bbox[3]
-    
-    draw.text((x, y), date_str, font=font, fill=0)
+    # Draw the text at the calculated position
+    # We need to adjust x by -bbox[0] to compensate for the text's left offset
+    # We need to adjust y by -bbox[1] to compensate for the text's top offset
+    draw.text((x - bbox[0], y - bbox[1]), date_str, font=font, fill=0)
     
     # Debug info
     print(f"Font size: {font_size}, Text dimensions: {text_width}x{text_height}")
     print(f"BBox: left={bbox[0]}, top={bbox[1]}, right={bbox[2]}, bottom={bbox[3]}")
-    print(f"Position: ({x}, {y}), Label dimensions: {width_px}x{height_px}")
-    print(f"Bottom margin: {BOTTOM_MARGIN}px")
+    print(f"Calculated position: x={x}, y={y}")
+    print(f"Final draw position: ({x - bbox[0]}, {y - bbox[1]})")
+    print(f"Label dimensions: {width_px}x{height_px}, Bottom margin: {BOTTOM_MARGIN}px")
     
     image.save("label_preview.png")  # Optional preview
     return image
