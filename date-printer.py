@@ -19,7 +19,7 @@ DATE_FORMAT = "%B %d, %Y"  # e.g., "January 26, 2025"
 MAX_RETRIES = 6
 WAIT_BETWEEN_TRIES = 5  # Seconds
 CONFIG_FILE = "printer-config.json"
-BOTTOM_MARGIN = 20  # Pixels from bottom of label
+BOTTOM_MARGIN = 5  # Pixels from bottom of label
 
 # Month-specific size ratios (longer month names get smaller text)
 MONTH_SIZE_RATIOS = {
@@ -88,7 +88,7 @@ def generate_label_image(date_str, date_obj):
     
     # Calculate maximum dimensions
     max_text_height = int(height_px * text_height_ratio)
-    max_text_width = int(width_px * 0.9)  # Use 90% of label width
+    max_text_width = int(width_px * 0.85)  # Use 85% of label width for safety
     
     # Find the right font size
     font_size = 10
@@ -123,17 +123,28 @@ def generate_label_image(date_str, date_obj):
     # We want the bottom of the text to be BOTTOM_MARGIN pixels from the bottom
     y = height_px - BOTTOM_MARGIN - text_height
     
+    # Calculate the actual drawing position
+    draw_x = x - bbox[0]
+    draw_y = y - bbox[1]
+    
+    # Add safety check to prevent left cutoff
+    if draw_x < 0:
+        print(f"WARNING: Text would be cut off on left! Adjusting from {draw_x} to 0")
+        draw_x = 0
+    
     # Draw the text at the calculated position
-    # We need to adjust x by -bbox[0] to compensate for the text's left offset
-    # We need to adjust y by -bbox[1] to compensate for the text's top offset
-    draw.text((x - bbox[0], y - bbox[1]), date_str, font=font, fill=0)
+    draw.text((draw_x, draw_y), date_str, font=font, fill=0)
     
     # Debug info
+    print(f"\n=== Debug Info ===")
+    print(f"Date string: '{date_str}'")
     print(f"Font size: {font_size}, Text dimensions: {text_width}x{text_height}")
     print(f"BBox: left={bbox[0]}, top={bbox[1]}, right={bbox[2]}, bottom={bbox[3]}")
-    print(f"Calculated position: x={x}, y={y}")
-    print(f"Final draw position: ({x - bbox[0]}, {y - bbox[1]})")
-    print(f"Label dimensions: {width_px}x{height_px}, Bottom margin: {BOTTOM_MARGIN}px")
+    print(f"Logical center position: x={x}, y={y}")
+    print(f"Final draw position: ({draw_x}, {draw_y})")
+    print(f"Label dimensions: {width_px}x{height_px}")
+    print(f"Text will occupy: x={draw_x} to x={draw_x + text_width}")
+    print(f"Bottom margin: {BOTTOM_MARGIN}px")
     
     image.save("label_preview.png")  # Optional preview
     return image
