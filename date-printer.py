@@ -24,8 +24,7 @@ DEFAULT_CONFIG = {
     "date_format": "%B %d, %Y",
     "max_retries": 6,
     "wait_between_tries": 5,
-    "bottom_margin": 15,
-    "left_margin": 50  # Pixels to shift right to prevent cutoff
+    "bottom_margin": 15
 }
 
 # Month-specific size ratios (longer month names get smaller text)
@@ -193,22 +192,22 @@ def print_label(image, printer_name, config):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Add a left margin to prevent text cutoff
-        # The printer seems to be cutting off the left edge
-        left_margin = config.get('left_margin', 50)  # Pixels to shift right
+        # The printer is centering on the left edge, so we need to shift by half the label width
+        # Calculate half the label width in pixels
+        half_label_width = int(config['label_width_in'] * config['dpi'] / 2)
         
-        # Draw with left margin offset
+        # Draw with the image shifted right by half the label width
         dib.draw(hDC.GetHandleOutput(), 
-                (left_margin, 0, left_margin + width_px, height_px))
+                (half_label_width, 0, half_label_width + width_px, height_px))
         
-        print(f"Applied left margin: {left_margin}px")
+        print(f"Applied horizontal offset: {half_label_width}px (half of {config['label_width_in']}\" at {config['dpi']} DPI)")
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
         print(f"Image size: {width_px}x{height_px} pixels (created at {config['dpi']} DPI)")
-        print(f"Drew at coordinates: ({left_margin}, 0, {left_margin + width_px}, {height_px})")
+        print(f"Drew at coordinates: ({half_label_width}, 0, {half_label_width + width_px}, {height_px})")
         print(f"Expected physical size: {config['label_width_in']}x{config['label_height_in']} inches")
         return True
     except Exception as e:
