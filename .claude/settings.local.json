@@ -11,7 +11,8 @@
       "Bash(python3:*)",
       "Bash(rm:*)",
       "Bash(mv:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }
