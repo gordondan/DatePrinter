@@ -106,19 +106,29 @@ def generate_label_image(date_str, date_obj):
     
     # Use the determined font size
     font = ImageFont.truetype(FONT_PATH, font_size)
+    
+    # Get text dimensions - textbbox returns (left, top, right, bottom)
+    # We need to use (0, 0) as the anchor point to get proper dimensions
     bbox = draw.textbbox((0, 0), date_str, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
     
-    # Center horizontally, position with bottom margin
-    x = (width_px - text_width) // 2
-    y = height_px - text_height - BOTTOM_MARGIN - bbox[1]  # Adjust for text baseline
+    # The bbox[0] and bbox[1] values represent the offset from the anchor point
+    # We need to account for these when positioning
+    
+    # Center horizontally - account for left offset
+    x = (width_px - text_width) // 2 - bbox[0]
+    
+    # Position at bottom with margin - account for top offset
+    y = height_px - BOTTOM_MARGIN - bbox[3]
     
     draw.text((x, y), date_str, font=font, fill=0)
     
     # Debug info
     print(f"Font size: {font_size}, Text dimensions: {text_width}x{text_height}")
+    print(f"BBox: left={bbox[0]}, top={bbox[1]}, right={bbox[2]}, bottom={bbox[3]}")
     print(f"Position: ({x}, {y}), Label dimensions: {width_px}x{height_px}")
+    print(f"Bottom margin: {BOTTOM_MARGIN}px")
     
     image.save("label_preview.png")  # Optional preview
     return image
