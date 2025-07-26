@@ -9,9 +9,12 @@ A Python script for printing date labels on thermal label printers.
    pip install pillow pywin32
    ```
 
-2. Configure your printer:
-   - Copy `printer-config.json.default` to `printer-config.json`
-   - Edit `printer-config.json` to match your printer settings
+2. Run the script once to create the configuration file:
+   ```
+   python date-printer.py
+   ```
+
+3. Edit `printer-config.json` to customize settings if needed
 
 ## Configuration
 
@@ -40,6 +43,11 @@ The configuration file supports multiple printer profiles and customizable setti
 
 ## Usage
 
+Show help:
+```
+python date-printer.py --help
+```
+
 Print today's date:
 ```
 python date-printer.py
@@ -55,9 +63,14 @@ Print multiple labels:
 python date-printer.py --count 5
 ```
 
-Force printer selection:
+Force printer selection (ignore default):
 ```
 python date-printer.py --list
+```
+
+Combine options:
+```
+python date-printer.py --date 2024-07-04 --count 10
 ```
 
 ## Supported Printers

@@ -12,50 +12,69 @@ import win32con
 
 # --- CONFIGURATION ---
 CONFIG_FILE = "printer-config.json"
-DEFAULT_CONFIG_FILE = "printer-config.json.default"
 
-# Minimal defaults if no config files exist
-MINIMAL_DEFAULTS = {
+# Default configuration
+DEFAULT_CONFIG = {
     "default_printer": None,
     "date_format": "%B %d, %Y",
     "font_path": "C:/Windows/Fonts/arialbd.ttf",
     "max_retries": 6,
     "wait_between_tries": 5,
-    "printers": {}
+    "pause_between_labels": 1,
+    "min_font_size": 10,
+    "max_font_size": 500,
+    "max_text_width_ratio": 0.85,
+    "default_text_height_ratio": 0.15,
+    "month_size_ratios": {
+        "January": 0.15,
+        "February": 0.14,
+        "March": 0.18,
+        "April": 0.18,
+        "May": 0.20,
+        "June": 0.19,
+        "July": 0.19,
+        "August": 0.16,
+        "September": 0.13,
+        "October": 0.15,
+        "November": 0.14,
+        "December": 0.14
+    },
+    "printers": {
+        "Munbyn RW402B(Bluetooth)": {
+            "bluetooth_device_name": "RW402B-20B0",
+            "label_width_in": 2.25,
+            "label_height_in": 1.25,
+            "dpi": 203,
+            "bottom_margin": 15,
+            "bluetooth_wait_time": 3
+        }
+    }
 }
 
 def load_config():
-    """Load configuration from JSON file with defaults"""
-    config = None
+    """Load configuration from JSON file, create if missing"""
+    # If config file doesn't exist, create it with defaults
+    if not os.path.exists(CONFIG_FILE):
+        print(f"Creating default configuration file: {CONFIG_FILE}")
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(DEFAULT_CONFIG, f, indent=2)
+        print("Configuration file created. You can edit it to customize settings.")
     
-    # Try to load user config first
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                config = json.load(f)
-        except Exception as e:
-            print(f"Warning: Could not load {CONFIG_FILE}: {e}")
-    
-    # If no user config, try to load default config
-    if config is None and os.path.exists(DEFAULT_CONFIG_FILE):
-        try:
-            with open(DEFAULT_CONFIG_FILE, 'r') as f:
-                config = json.load(f)
-            print(f"Loaded default configuration from {DEFAULT_CONFIG_FILE}")
-        except Exception as e:
-            print(f"Warning: Could not load {DEFAULT_CONFIG_FILE}: {e}")
-    
-    # If still no config, use minimal defaults
-    if config is None:
-        config = MINIMAL_DEFAULTS.copy()
-        print("Using minimal built-in defaults")
-    
-    # Ensure required keys exist
-    for key in ['printers', 'month_size_ratios']:
-        if key not in config:
-            config[key] = {}
-    
-    return config
+    # Load the config file
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+        
+        # Merge with defaults to ensure all keys exist
+        for key, value in DEFAULT_CONFIG.items():
+            if key not in config:
+                config[key] = value
+        
+        return config
+    except Exception as e:
+        print(f"Error loading {CONFIG_FILE}: {e}")
+        print("Using default configuration")
+        return DEFAULT_CONFIG.copy()
 
 def save_config(config):
     """Save configuration to JSON file"""
@@ -238,10 +257,16 @@ def print_label(image, printer_name, config, printer_config):
 
 if __name__ == "__main__":
     # Set up argument parser
-    parser = argparse.ArgumentParser(description='Print date labels on a label printer')
-    parser.add_argument('-l', '--list', action='store_true', help='Force printer selection menu')
-    parser.add_argument('-c', '--count', type=int, default=1, help='Number of labels to print (default: 1)')
-    parser.add_argument('-d', '--date', type=str, help='Specific date to print (format: YYYY-MM-DD)')
+    parser = argparse.ArgumentParser(
+        description='Print date labels on a thermal label printer',
+        epilog='Configuration is stored in printer-config.json (created automatically on first run)'
+    )
+    parser.add_argument('-l', '--list', action='store_true', 
+                        help='Force printer selection menu (ignore default printer)')
+    parser.add_argument('-c', '--count', type=int, default=1, 
+                        help='Number of labels to print (default: 1)')
+    parser.add_argument('-d', '--date', type=str, 
+                        help='Specific date to print (format: YYYY-MM-DD, default: today)')
     args = parser.parse_args()
     
     # Load configuration
