@@ -14,7 +14,7 @@ import win32con
 BLUETOOTH_DEVICE_NAME = "RW402B-20B0"  # As seen in Bluetooth Settings
 PRINTER_NAME = "Munbyn RW402B(Bluetooth)"                     # As seen in printer list
 LABEL_WIDTH_IN, LABEL_HEIGHT_IN = 2.25, 1.25                 # Inches
-DPI = 300
+DPI = 203  # Match common thermal printer DPI
 FONT_PATH = "C:/Windows/Fonts/arialbd.ttf"                   # Bold font path
 DATE_FORMAT = "%B %d, %Y"  # e.g., "January 26, 2025"
 MAX_RETRIES = 6
