@@ -25,6 +25,20 @@ DEFAULT_CONFIG = {
     "max_font_size": 500,
     "max_text_width_ratio": 0.85,
     "default_text_height_ratio": 0.15,
+    
+    # Windows GetDeviceCaps index constants
+    # These are NOT the actual values - they're indices to query printer capabilities
+    "windows_device_caps": {
+        "HORZRES": 8,          # Index to get horizontal resolution (pixels)
+        "VERTRES": 10,         # Index to get vertical resolution (pixels)
+        "LOGPIXELSX": 88,      # Index to get horizontal DPI
+        "LOGPIXELSY": 90,      # Index to get vertical DPI
+        "PHYSICALWIDTH": 110,  # Index to get physical paper width
+        "PHYSICALHEIGHT": 111, # Index to get physical paper height
+        "PHYSICALOFFSETX": 112,# Index to get left margin
+        "PHYSICALOFFSETY": 113 # Index to get top margin
+    },
+    
     "month_size_ratios": {
         "January": 0.15,
         "February": 0.14,
@@ -204,39 +218,30 @@ def print_label(image, printer_name, config, printer_config):
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(printer_name)
         
-        # Windows device capability constants
-        # Note: These should be in win32con but aren't always available
-        # Values are from Windows SDK wingdi.h
-        HORZRES = 8          # Horizontal width in pixels of printable area
-        VERTRES = 10         # Vertical height in pixels of printable area
-        LOGPIXELSX = 88      # Number of pixels per logical inch along X axis
-        LOGPIXELSY = 90      # Number of pixels per logical inch along Y axis
-        PHYSICALWIDTH = 110  # Physical width in device units (full paper)
-        PHYSICALHEIGHT = 111 # Physical height in device units (full paper)
-        PHYSICALOFFSETX = 112 # Left margin - distance from left edge to printable area
-        PHYSICALOFFSETY = 113 # Top margin - distance from top edge to printable area
+        # Get device capability indices from config
+        caps = config.get('windows_device_caps', {})
         
-        # Get printer physical dimensions (in device units)
-        printer_width = hDC.GetDeviceCaps(PHYSICALWIDTH)
-        printer_height = hDC.GetDeviceCaps(PHYSICALHEIGHT)
-        
-        # Get printer DPI (dots per inch)
-        printer_dpi_x = hDC.GetDeviceCaps(LOGPIXELSX)
-        printer_dpi_y = hDC.GetDeviceCaps(LOGPIXELSY)
-        
-        # Get actual printable area (what the printer can actually print on)
-        printable_width = hDC.GetDeviceCaps(HORZRES)
-        printable_height = hDC.GetDeviceCaps(VERTRES)
-        
-        # Get physical margins (unprintable area offsets)
-        offset_x = hDC.GetDeviceCaps(PHYSICALOFFSETX)
-        offset_y = hDC.GetDeviceCaps(PHYSICALOFFSETY)
+        # Query printer capabilities using Windows GetDeviceCaps
+        # These return the ACTUAL values (not the index constants)
+        printer_width = hDC.GetDeviceCaps(caps.get('PHYSICALWIDTH', 110))     # Full paper width
+        printer_height = hDC.GetDeviceCaps(caps.get('PHYSICALHEIGHT', 111))   # Full paper height
+        printer_dpi_x = hDC.GetDeviceCaps(caps.get('LOGPIXELSX', 88))         # Horizontal DPI
+        printer_dpi_y = hDC.GetDeviceCaps(caps.get('LOGPIXELSY', 90))         # Vertical DPI
+        printable_width = hDC.GetDeviceCaps(caps.get('HORZRES', 8))           # Printable width
+        printable_height = hDC.GetDeviceCaps(caps.get('VERTRES', 10))         # Printable height
+        offset_x = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETX', 112))        # Left margin
+        offset_y = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETY', 113))        # Top margin
         
         print(f"\n=== Printer Info ===")
         print(f"Printer DPI: {printer_dpi_x}x{printer_dpi_y}")
-        print(f"Physical size: {printer_width}x{printer_height}")
-        print(f"Printable area: {printable_width}x{printable_height}")
-        print(f"Offsets: x={offset_x}, y={offset_y}")
+        print(f"Physical size: {printer_width}x{printer_height} device units")
+        print(f"Printable area: {printable_width}x{printable_height} pixels")
+        print(f"Margins: left={offset_x}, top={offset_y} device units")
+        
+        # Example: For a 2.25"×1.25" label at 203 DPI:
+        # - printer_dpi_x/y = 203
+        # - printable_width/height = 457×254 pixels (2.25"×1.25" × 203 DPI)
+        # - The indices (8,10,88,etc) are just lookups - NOT the actual dimensions
         
         hDC.StartDoc('Label')
         hDC.StartPage()
