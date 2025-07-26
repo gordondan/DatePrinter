@@ -10,17 +10,22 @@ import win32print
 import win32ui
 import win32con
 
-# --- USER SETTINGS ---
-BLUETOOTH_DEVICE_NAME = "RW402B-20B0"  # As seen in Bluetooth Settings
-PRINTER_NAME = "Munbyn RW402B(Bluetooth)"                     # As seen in printer list
-LABEL_WIDTH_IN, LABEL_HEIGHT_IN = 2.25, 1.25                 # Inches
-DPI = 203  # Match common thermal printer DPI
-FONT_PATH = "C:/Windows/Fonts/arialbd.ttf"                   # Bold font path
-DATE_FORMAT = "%B %d, %Y"  # e.g., "January 26, 2025"
-MAX_RETRIES = 6
-WAIT_BETWEEN_TRIES = 5  # Seconds
+# --- DEFAULT SETTINGS ---
 CONFIG_FILE = "printer-config.json"
-BOTTOM_MARGIN = 15  # Pixels from bottom of label
+
+# Default values (can be overridden by config file)
+DEFAULT_CONFIG = {
+    "default_printer": None,
+    "bluetooth_device_name": "RW402B-20B0",
+    "label_width_in": 2.25,
+    "label_height_in": 1.25,
+    "dpi": 203,
+    "font_path": "C:/Windows/Fonts/arialbd.ttf",
+    "date_format": "%B %d, %Y",
+    "max_retries": 6,
+    "wait_between_tries": 5,
+    "bottom_margin": 15
+}
 
 # Month-specific size ratios (longer month names get smaller text)
 MONTH_SIZE_RATIOS = {
@@ -39,14 +44,16 @@ MONTH_SIZE_RATIOS = {
 }
 
 def load_config():
-    """Load configuration from JSON file"""
+    """Load configuration from JSON file with defaults"""
+    config = DEFAULT_CONFIG.copy()
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
-                return json.load(f)
+                saved_config = json.load(f)
+                config.update(saved_config)
         except:
-            return {}
-    return {}
+            pass
+    return config
 
 def save_config(config):
     """Save configuration to JSON file"""
@@ -77,10 +84,10 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj):
-    # Always create at a standard resolution for consistency
-    width_px = int(LABEL_WIDTH_IN * DPI)
-    height_px = int(LABEL_HEIGHT_IN * DPI)
+def generate_label_image(date_str, date_obj, config):
+    # Create image based on config settings
+    width_px = int(config['label_width_in'] * config['dpi'])
+    height_px = int(config['label_height_in'] * config['dpi'])
     image = Image.new('L', (width_px, height_px), 255)
     draw = ImageDraw.Draw(image)
 
@@ -95,7 +102,7 @@ def generate_label_image(date_str, date_obj):
     # Find the right font size
     font_size = 10
     for size in range(10, 500):
-        font = ImageFont.truetype(FONT_PATH, size)
+        font = ImageFont.truetype(config['font_path'], size)
         # Use textbbox to get accurate text dimensions
         bbox = draw.textbbox((0, 0), date_str, font=font)
         text_width = bbox[2] - bbox[0]
@@ -107,7 +114,7 @@ def generate_label_image(date_str, date_obj):
         font_size = size
     
     # Use the determined font size
-    font = ImageFont.truetype(FONT_PATH, font_size)
+    font = ImageFont.truetype(config['font_path'], font_size)
     
     # Get text dimensions using textbbox
     # textbbox returns absolute coordinates of the bounding box
@@ -122,8 +129,8 @@ def generate_label_image(date_str, date_obj):
     x = (width_px - text_width) // 2
     
     # For vertical positioning at bottom with margin
-    # We want the bottom of the text to be BOTTOM_MARGIN pixels from the bottom
-    y = height_px - BOTTOM_MARGIN - text_height
+    # We want the bottom of the text to be bottom_margin pixels from the bottom
+    y = height_px - config['bottom_margin'] - text_height
     
     # Calculate the actual drawing position
     draw_x = x - bbox[0]
@@ -146,13 +153,13 @@ def generate_label_image(date_str, date_obj):
     print(f"Final draw position: ({draw_x}, {draw_y})")
     print(f"Label dimensions: {width_px}x{height_px}")
     print(f"Text will occupy: x={draw_x} to x={draw_x + text_width}")
-    print(f"Bottom margin: {BOTTOM_MARGIN}px")
+    print(f"Bottom margin: {config['bottom_margin']}px")
     
     image.save("label_preview.png")  # Optional preview
     return image
 
 
-def print_label(image, printer_name):
+def print_label(image, printer_name, config):
     width_px, height_px = image.size
     try:
         hDC = win32ui.CreateDC()
@@ -185,24 +192,18 @@ def print_label(image, printer_name):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Calculate position to center the label on the printable area
-        # If the printable area is larger than our label, center it
-        x_offset = max(0, (printable_width - width_px) // 2)
-        y_offset = max(0, (printable_height - height_px) // 2)
-        
-        # Draw the image centered on the printable area
+        # Don't center - this can cause label skipping on thermal printers
+        # The printer expects the label at (0,0) and handles positioning itself
         dib.draw(hDC.GetHandleOutput(), 
-                (x_offset, y_offset, x_offset + width_px, y_offset + height_px))
-        
-        print(f"Centering offsets: x={x_offset}, y={y_offset}")
+                (0, 0, width_px, height_px))
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
-        print(f"Image size: {width_px}x{height_px} pixels (created at {DPI} DPI)")
-        print(f"Drew at coordinates: ({x_offset}, {y_offset}, {x_offset + width_px}, {y_offset + height_px})")
-        print(f"Expected physical size: {LABEL_WIDTH_IN}x{LABEL_HEIGHT_IN} inches")
+        print(f"Image size: {width_px}x{height_px} pixels (created at {config['dpi']} DPI)")
+        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
+        print(f"Expected physical size: {config['label_width_in']}x{config['label_height_in']} inches")
         return True
     except Exception as e:
         print(f"Printing failed: {e}")
@@ -220,23 +221,22 @@ if __name__ == "__main__":
     
     # Load configuration
     config = load_config()
-    default_printer = config.get("default_printer", None)
     
     # Step 1: Get printer selection
     selected_printer = None
     
     # If we have a default and not forcing list, try to use it
-    if default_printer and not args.list:
+    if config['default_printer'] and not args.list:
         # Get all printers to verify default still exists
         all_printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
         printer_names = [p[2] for p in all_printers]
         
-        if default_printer in printer_names:
-            selected_printer = default_printer
+        if config['default_printer'] in printer_names:
+            selected_printer = config['default_printer']
             print(f"Using default printer: {selected_printer}")
         else:
-            print(f"Default printer '{default_printer}' not found.")
-            default_printer = None
+            print(f"Default printer '{config['default_printer']}' not found.")
+            config['default_printer'] = None
     
     # If no valid default or forcing list, show selection menu
     if not selected_printer:
@@ -264,8 +264,8 @@ if __name__ == "__main__":
                 print("Please enter a valid number")
 
     # Step 2: Try to connect to Bluetooth printer (best effort)
-    if BLUETOOTH_DEVICE_NAME:
-        reconnect_bluetooth_device(BLUETOOTH_DEVICE_NAME)
+    if config['bluetooth_device_name']:
+        reconnect_bluetooth_device(config['bluetooth_device_name'])
         print("Waiting for Bluetooth device to connect...")
         time.sleep(3)  # Give time to connect
 
@@ -274,16 +274,16 @@ if __name__ == "__main__":
         try:
             # Parse the provided date
             date_obj = datetime.strptime(args.date, "%Y-%m-%d")
-            date_str = date_obj.strftime(DATE_FORMAT)
+            date_str = date_obj.strftime(config['date_format'])
             print(f"Using specified date: {date_str}")
         except ValueError:
             print(f"Invalid date format: {args.date}. Please use YYYY-MM-DD format.")
             exit(1)
     else:
         date_obj = datetime.now()
-        date_str = date_obj.strftime(DATE_FORMAT)
+        date_str = date_obj.strftime(config['date_format'])
     
-    label_img = generate_label_image(date_str, date_obj)
+    label_img = generate_label_image(date_str, date_obj, config)
     print(f"Label image generated for: {date_str}")
 
     # Step 4: Print the requested number of labels
@@ -294,16 +294,16 @@ if __name__ == "__main__":
             print(f"\nLabel {label_num} of {args.count}:")
         
         # Try printing with retries
-        for attempt in range(MAX_RETRIES):
-            print(f"  Print attempt {attempt + 1} of {MAX_RETRIES}...")
-            success = print_label(label_img, selected_printer)
+        for attempt in range(config['max_retries']):
+            print(f"  Print attempt {attempt + 1} of {config['max_retries']}...")
+            success = print_label(label_img, selected_printer, config)
             if success:
                 if label_num < args.count:
                     time.sleep(1)  # Brief pause between labels
                 break
             else:
-                print(f"  Retrying in {WAIT_BETWEEN_TRIES} seconds...")
-                time.sleep(WAIT_BETWEEN_TRIES)
+                print(f"  Retrying in {config['wait_between_tries']} seconds...")
+                time.sleep(config['wait_between_tries'])
         else:
             print("Failed to print after multiple attempts. Is the printer powered on, paired, and connected?")
             exit(1)
