@@ -20,7 +20,7 @@ DATE_FORMAT = "%B %d, %Y"  # e.g., "January 26, 2025"
 MAX_RETRIES = 6
 WAIT_BETWEEN_TRIES = 5  # Seconds
 CONFIG_FILE = "printer-config.json"
-BOTTOM_MARGIN = 5  # Pixels from bottom of label
+BOTTOM_MARGIN = 15  # Pixels from bottom of label
 
 # Month-specific size ratios (longer month names get smaller text)
 MONTH_SIZE_RATIOS = {
@@ -185,17 +185,23 @@ def print_label(image, printer_name):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Draw the image at actual pixel size without scaling
-        # The printer driver will handle the DPI conversion
+        # Calculate position to center the label on the printable area
+        # If the printable area is larger than our label, center it
+        x_offset = max(0, (printable_width - width_px) // 2)
+        y_offset = max(0, (printable_height - height_px) // 2)
+        
+        # Draw the image centered on the printable area
         dib.draw(hDC.GetHandleOutput(), 
-                (0, 0, width_px, height_px))
+                (x_offset, y_offset, x_offset + width_px, y_offset + height_px))
+        
+        print(f"Centering offsets: x={x_offset}, y={y_offset}")
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
         print(f"Image size: {width_px}x{height_px} pixels (created at {DPI} DPI)")
-        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
+        print(f"Drew at coordinates: ({x_offset}, {y_offset}, {x_offset + width_px}, {y_offset + height_px})")
         print(f"Expected physical size: {LABEL_WIDTH_IN}x{LABEL_HEIGHT_IN} inches")
         return True
     except Exception as e:
