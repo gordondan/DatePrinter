@@ -223,6 +223,7 @@ def print_label(image, printer_name, config, printer_config):
         print(f"Physical size: {printer_width}x{printer_height} device units")
         print(f"Printable area: {printable_width}x{printable_height} pixels")
         print(f"Margins: left={offset_x}, top={offset_y} device units")
+        print(f"Label should print from x={offset_x} to x={offset_x + width_px}")
         
         # Example: For a 2.25"×1.25" label at 203 DPI:
         # - printer_dpi_x/y = 203
@@ -238,16 +239,29 @@ def print_label(image, printer_name, config, printer_config):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Apply horizontal offset if configured
-        h_offset = printer_config.get('horizontal_offset', 0)
+        # Use the printer's reported physical offset to position the image correctly
+        # The offset_x tells us where the printable area starts from the left edge
+        # Note: offset_x is in device units at printer resolution
         
-        # Draw the image with optional horizontal offset
+        # For thermal printers, the physical offset often represents where the label
+        # actually starts on the print head. We need to compensate for this.
+        # If the printer centers on the left edge, we may need additional offset
+        
+        # Start with the printer's physical offset
+        h_offset = offset_x
+        
+        # Add any additional configured offset
+        additional_offset = printer_config.get('horizontal_offset', 0)
+        total_offset = h_offset + additional_offset
+        
+        # Draw the image with calculated offset
         dib.draw(hDC.GetHandleOutput(), 
-                (h_offset, 0, h_offset + width_px, height_px))
+                (total_offset, 0, total_offset + width_px, height_px))
         
-        print(f"Drawing at position ({h_offset}, 0, {h_offset + width_px}, {height_px})")
-        if h_offset > 0:
-            print(f"Applied horizontal offset: {h_offset}px")
+        print(f"Drawing at position ({total_offset}, 0, {total_offset + width_px}, {height_px})")
+        print(f"  Printer physical offset: {offset_x} device units")
+        print(f"  Additional configured offset: {additional_offset}px")
+        print(f"  Total horizontal offset: {total_offset} device units")
         
         hDC.EndPage()
         hDC.EndDoc()
