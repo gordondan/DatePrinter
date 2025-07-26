@@ -64,6 +64,8 @@ Here is a complete example configuration:
       "label_height_in": 1.25,
       "dpi": 203,
       "bottom_margin": 15,
+      "positioning_mode": "auto",
+      "horizontal_offset": 0,
       "bluetooth_device_name": "Munbyn RW402B",
       "bluetooth_wait_time": 3
     }
@@ -105,7 +107,12 @@ The `printers` object contains settings for each printer. Add a new object for e
 - `label_height_in`: Label height in inches
 - `dpi`: Printer DPI (dots per inch)
 - `bottom_margin`: Bottom margin in pixels
-- `horizontal_offset`: Additional horizontal offset in pixels beyond printer's physical offset (0 = use printer offset only)
+- `horizontal_offset`: Additional horizontal offset in pixels (used with positioning_mode)
+- `positioning_mode`: How to position the label. Options:
+  - `"auto"` (default): Auto-detect best positioning based on printer capabilities
+  - `"physical_offset"`: Use only the printer's reported physical offset
+  - `"center"`: Center the label in the printable area
+  - `"manual"`: Use only the horizontal_offset value
 - `bluetooth_device_name`: Bluetooth device name for auto-reconnection (optional)
 - `bluetooth_wait_time`: Seconds to wait after Bluetooth reconnection attempt
 

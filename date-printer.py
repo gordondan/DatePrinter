@@ -83,6 +83,7 @@ def get_printer_config(config, printer_name):
             "dpi": 203,
             "bottom_margin": 15,
             "horizontal_offset": 0,
+            "positioning_mode": "auto",
             "bluetooth_device_name": "",
             "bluetooth_wait_time": 3
         }
@@ -239,20 +240,56 @@ def print_label(image, printer_name, config, printer_config):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Use the printer's reported physical offset to position the image correctly
-        # The offset_x tells us where the printable area starts from the left edge
-        # Note: offset_x is in device units at printer resolution
+        # Calculate positioning for the Munbyn printer
+        # The printer might be centering labels within its printable area
         
-        # For thermal printers, the physical offset often represents where the label
-        # actually starts on the print head. We need to compensate for this.
-        # If the printer centers on the left edge, we may need additional offset
+        # Check if printable area is wider than our label
+        if printable_width > width_px:
+            # The printer has a wider printable area than our label
+            # It might be expecting us to center the content
+            auto_center_offset = (printable_width - width_px) // 2
+            print(f"Printable width ({printable_width}) > Image width ({width_px})")
+            print(f"Auto-centering offset would be: {auto_center_offset}px")
+        else:
+            auto_center_offset = 0
         
-        # Start with the printer's physical offset
-        h_offset = offset_x
+        # Try different positioning strategies based on config
+        positioning_mode = printer_config.get('positioning_mode', 'auto')
+        
+        if positioning_mode == 'auto':
+            # Try to auto-detect best positioning
+            if printable_width > width_px:
+                # Center in printable area
+                h_offset = auto_center_offset
+                print(f"Using auto-center mode: offset={h_offset}px")
+            else:
+                # Use physical offset
+                h_offset = offset_x
+                print(f"Using physical offset mode: offset={h_offset}px")
+        elif positioning_mode == 'physical_offset':
+            # Use only the physical offset
+            h_offset = offset_x
+            print(f"Using physical offset only: {h_offset}px")
+        elif positioning_mode == 'center':
+            # Force centering in printable area
+            h_offset = auto_center_offset
+            print(f"Using center mode: {h_offset}px")
+        elif positioning_mode == 'manual':
+            # Use only manual offset
+            h_offset = printer_config.get('horizontal_offset', 0)
+            print(f"Using manual offset: {h_offset}px")
+        else:
+            # Default to physical offset
+            h_offset = offset_x
+            print(f"Unknown positioning mode, using physical offset: {h_offset}px")
         
         # Add any additional configured offset
         additional_offset = printer_config.get('horizontal_offset', 0)
-        total_offset = h_offset + additional_offset
+        if additional_offset != 0 and positioning_mode != 'manual':
+            h_offset += additional_offset
+            print(f"Added additional offset: {additional_offset}px")
+        
+        total_offset = h_offset
         
         # Draw the image with calculated offset
         dib.draw(hDC.GetHandleOutput(), 

@@ -39,6 +39,7 @@
       "label_height_in": 1.25,
       "dpi": 203,
       "bottom_margin": 15,
+      "positioning_mode": "auto",
       "horizontal_offset": 0,
       "bluetooth_device_name": "",
       "bluetooth_wait_time": 3
