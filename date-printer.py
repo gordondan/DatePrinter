@@ -15,11 +15,27 @@ PRINTER_NAME = "Munbyn RW402B(Bluetooth)"                     # As seen in print
 LABEL_WIDTH_IN, LABEL_HEIGHT_IN = 2.25, 1.25                 # Inches
 DPI = 300
 FONT_PATH = "C:/Windows/Fonts/arialbd.ttf"                   # Bold font path
-DATE_FORMAT = "%b %d"  # e.g., "Jan 26"
+DATE_FORMAT = "%B %d, %Y"  # e.g., "January 26, 2025"
 MAX_RETRIES = 6
 WAIT_BETWEEN_TRIES = 5  # Seconds
 CONFIG_FILE = "printer-config.json"
-TEXT_HEIGHT_RATIO = 0.2  # Text fills 20% of label height for even smaller text
+BOTTOM_MARGIN = 20  # Pixels from bottom of label
+
+# Month-specific size ratios (longer month names get smaller text)
+MONTH_SIZE_RATIOS = {
+    "January": 0.15,
+    "February": 0.14,
+    "March": 0.18,
+    "April": 0.18,
+    "May": 0.20,
+    "June": 0.19,
+    "July": 0.19,
+    "August": 0.16,
+    "September": 0.13,
+    "October": 0.15,
+    "November": 0.14,
+    "December": 0.14
+}
 
 def load_config():
     """Load configuration from JSON file"""
@@ -60,30 +76,50 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str):
+def generate_label_image(date_str, date_obj):
     width_px = int(LABEL_WIDTH_IN * DPI)
     height_px = int(LABEL_HEIGHT_IN * DPI)
     image = Image.new('L', (width_px, height_px), 255)
     draw = ImageDraw.Draw(image)
 
-    # Dynamically find the largest font size that fits TEXT_HEIGHT_RATIO of label height
-    max_text_height = int(height_px * TEXT_HEIGHT_RATIO)
-    max_text_width = int(width_px * 0.8)  # Also limit to 80% of label width
+    # Get month-specific size ratio
+    month_name = date_obj.strftime("%B")
+    text_height_ratio = MONTH_SIZE_RATIOS.get(month_name, 0.15)
+    
+    # Calculate maximum dimensions
+    max_text_height = int(height_px * text_height_ratio)
+    max_text_width = int(width_px * 0.9)  # Use 90% of label width
+    
+    # Find the right font size
+    font_size = 10
     for size in range(10, 500):
         font = ImageFont.truetype(FONT_PATH, size)
+        # Use textbbox to get accurate text dimensions
         bbox = draw.textbbox((0, 0), date_str, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
+        
         if text_height > max_text_height or text_width > max_text_width:
             font_size = size - 1
             break
+        font_size = size
+    
+    # Use the determined font size
     font = ImageFont.truetype(FONT_PATH, font_size)
     bbox = draw.textbbox((0, 0), date_str, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
+    
+    # Center horizontally, position with bottom margin
     x = (width_px - text_width) // 2
-    y = (height_px - text_height) // 2
+    y = height_px - text_height - BOTTOM_MARGIN - bbox[1]  # Adjust for text baseline
+    
     draw.text((x, y), date_str, font=font, fill=0)
+    
+    # Debug info
+    print(f"Font size: {font_size}, Text dimensions: {text_width}x{text_height}")
+    print(f"Position: ({x}, {y}), Label dimensions: {width_px}x{height_px}")
+    
     image.save("label_preview.png")  # Optional preview
     return image
 
@@ -111,6 +147,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Print date labels on a label printer')
     parser.add_argument('-l', '--list', action='store_true', help='Force printer selection menu')
     parser.add_argument('-c', '--count', type=int, default=1, help='Number of labels to print (default: 1)')
+    parser.add_argument('-d', '--date', type=str, help='Specific date to print (format: YYYY-MM-DD)')
     args = parser.parse_args()
     
     # Load configuration
@@ -165,8 +202,20 @@ if __name__ == "__main__":
         time.sleep(3)  # Give time to connect
 
     # Step 3: Generate the label image
-    date_str = datetime.now().strftime(DATE_FORMAT)
-    label_img = generate_label_image(date_str)
+    if args.date:
+        try:
+            # Parse the provided date
+            date_obj = datetime.strptime(args.date, "%Y-%m-%d")
+            date_str = date_obj.strftime(DATE_FORMAT)
+            print(f"Using specified date: {date_str}")
+        except ValueError:
+            print(f"Invalid date format: {args.date}. Please use YYYY-MM-DD format.")
+            exit(1)
+    else:
+        date_obj = datetime.now()
+        date_str = date_obj.strftime(DATE_FORMAT)
+    
+    label_img = generate_label_image(date_str, date_obj)
     print(f"Label image generated for: {date_str}")
 
     # Step 4: Print the requested number of labels
