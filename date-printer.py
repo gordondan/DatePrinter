@@ -175,9 +175,16 @@ def print_label(image, printer_name):
         print(f"Offsets: x={offset_x}, y={offset_y}")
         
         # Calculate scaling to fit the label
-        # Convert our label dimensions to printer pixels
-        label_width_printer_px = int(LABEL_WIDTH_IN * printer_dpi_x)
-        label_height_printer_px = int(LABEL_HEIGHT_IN * printer_dpi_y)
+        # Our image is created at DPI (300), but printer might have different DPI
+        scale_x = printer_dpi_x / DPI
+        scale_y = printer_dpi_y / DPI
+        
+        # Calculate destination size
+        dest_width = int(width_px * scale_x)
+        dest_height = int(height_px * scale_y)
+        
+        print(f"Scaling: {scale_x}x (horizontal), {scale_y}x (vertical)")
+        print(f"Destination size: {dest_width}x{dest_height}")
         
         hDC.StartDoc('Label')
         hDC.StartPage()
@@ -185,16 +192,17 @@ def print_label(image, printer_name):
         # Create the DIB and draw it at the correct size
         dib = ImageWin.Dib(image)
         
-        # Draw the image scaled to the label size in printer coordinates
-        # Use negative offset values to account for printer margins
+        # Draw the image with proper scaling
+        # The coordinates are (left, top, right, bottom)
         dib.draw(hDC.GetHandleOutput(), 
-                (-offset_x, -offset_y, label_width_printer_px - offset_x, label_height_printer_px - offset_y))
+                (0, 0, dest_width, dest_height))
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
-        print(f"Drew at printer coordinates: (0, 0, {label_width_printer_px}, {label_height_printer_px})")
+        print(f"Image size: {width_px}x{height_px} at {DPI} DPI")
+        print(f"Drew at coordinates: (0, 0, {dest_width}, {dest_height})")
         return True
     except Exception as e:
         print(f"Printing failed: {e}")
