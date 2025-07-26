@@ -24,7 +24,8 @@ DEFAULT_CONFIG = {
     "date_format": "%B %d, %Y",
     "max_retries": 6,
     "wait_between_tries": 5,
-    "bottom_margin": 15
+    "bottom_margin": 15,
+    "left_margin": 50  # Pixels to shift right to prevent cutoff
 }
 
 # Month-specific size ratios (longer month names get smaller text)
@@ -192,17 +193,22 @@ def print_label(image, printer_name, config):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # Don't center - this can cause label skipping on thermal printers
-        # The printer expects the label at (0,0) and handles positioning itself
+        # Add a left margin to prevent text cutoff
+        # The printer seems to be cutting off the left edge
+        left_margin = config.get('left_margin', 50)  # Pixels to shift right
+        
+        # Draw with left margin offset
         dib.draw(hDC.GetHandleOutput(), 
-                (0, 0, width_px, height_px))
+                (left_margin, 0, left_margin + width_px, height_px))
+        
+        print(f"Applied left margin: {left_margin}px")
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
         print(f"Image size: {width_px}x{height_px} pixels (created at {config['dpi']} DPI)")
-        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
+        print(f"Drew at coordinates: ({left_margin}, 0, {left_margin + width_px}, {height_px})")
         print(f"Expected physical size: {config['label_width_in']}x{config['label_height_in']} inches")
         return True
     except Exception as e:
