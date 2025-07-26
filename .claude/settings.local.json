@@ -5,7 +5,10 @@
       "Bash(git init:*)",
       "Bash(git remote add:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh:*)",
+      "Bash(git push:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }
