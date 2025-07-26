@@ -29,9 +29,12 @@ def get_local_ip():
 
 # Define the endpoint with the new path
 @app.route('/app/date-printer', methods=['GET'])
+# In server.py
+
+@app.route('/app/date-printer', methods=['GET'])
 def run_date_printer():
     """
-    Executes date-printer.py, passing a 'count' parameter to it.
+    Executes date-printer.py, passing a '-c' flag with a 'count' parameter to it.
     The 'count' is retrieved from the URL's query string (e.g., ?count=3)
     """
     script_path = 'date-printer.py'
@@ -46,14 +49,14 @@ def run_date_printer():
             raise ValueError("Count must be positive.")
     except ValueError:
         error_message = f"Error: Invalid 'count' parameter. Must be a positive integer."
-        # 400 Bad Request is the appropriate HTTP status code for invalid client input.
         return Response(error_message, status=400, mimetype='text/plain')
     
     print(f"--- Received request to run '{script_path}' with count={count_val} ---")
     
     try:
-        # The command now includes the count as a command-line argument.
-        command = ['python', script_path, str(count_val)]
+        # --- THIS IS THE CORRECTED LINE ---
+        # The command now includes the named flag '-c' before the value.
+        command = ['python', script_path, '-c', str(count_val)]
         
         result = subprocess.run(
             command,
