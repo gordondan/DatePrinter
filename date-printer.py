@@ -13,82 +13,58 @@ import win32con
 # --- CONFIGURATION ---
 CONFIG_FILE = "printer-config.json"
 
-# Default configuration
-DEFAULT_CONFIG = {
-    "default_printer": None,
-    "date_format": "%B %d, %Y",
-    "font_path": "C:/Windows/Fonts/arialbd.ttf",
-    "max_retries": 6,
-    "wait_between_tries": 5,
-    "pause_between_labels": 1,
-    "min_font_size": 10,
-    "max_font_size": 500,
-    "max_text_width_ratio": 0.85,
-    "default_text_height_ratio": 0.15,
-    
-    # Windows GetDeviceCaps index constants
-    # These are NOT the actual values - they're indices to query printer capabilities
-    "windows_device_caps": {
-        "HORZRES": 8,          # Index to get horizontal resolution (pixels)
-        "VERTRES": 10,         # Index to get vertical resolution (pixels)
-        "LOGPIXELSX": 88,      # Index to get horizontal DPI
-        "LOGPIXELSY": 90,      # Index to get vertical DPI
-        "PHYSICALWIDTH": 110,  # Index to get physical paper width
-        "PHYSICALHEIGHT": 111, # Index to get physical paper height
-        "PHYSICALOFFSETX": 112,# Index to get left margin
-        "PHYSICALOFFSETY": 113 # Index to get top margin
-    },
-    
-    "month_size_ratios": {
-        "January": 0.15,
-        "February": 0.14,
-        "March": 0.18,
-        "April": 0.18,
-        "May": 0.20,
-        "June": 0.19,
-        "July": 0.19,
-        "August": 0.16,
-        "September": 0.13,
-        "October": 0.15,
-        "November": 0.14,
-        "December": 0.14
-    },
-    "printers": {
-        "Munbyn RW402B(Bluetooth)": {
-            "bluetooth_device_name": "RW402B-20B0",
-            "label_width_in": 2.25,
-            "label_height_in": 1.25,
-            "dpi": 203,
-            "bottom_margin": 15,
-            "bluetooth_wait_time": 3
-        }
-    }
-}
-
 def load_config():
-    """Load configuration from JSON file, create if missing"""
-    # If config file doesn't exist, create it with defaults
+    """Load configuration from JSON file, fail if missing"""
     if not os.path.exists(CONFIG_FILE):
-        print(f"Creating default configuration file: {CONFIG_FILE}")
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(DEFAULT_CONFIG, f, indent=2)
-        print("Configuration file created. You can edit it to customize settings.")
+        print(f"\nERROR: Configuration file '{CONFIG_FILE}' not found!")
+        print("\nPlease create a printer-config.json file with the following structure:")
+        print(json.dumps({
+            "default_printer": "Your Printer Name",
+            "date_format": "%B %d, %Y",
+            "font_path": "C:\\Windows\\Fonts\\arial.ttf",
+            "max_retries": 3,
+            "wait_between_tries": 2,
+            "pause_between_labels": 1,
+            "month_size_ratios": {
+                "January": 0.15,
+                "February": 0.15
+                # ... add other months as needed
+            },
+            "windows_device_caps": {
+                "PHYSICALWIDTH": 110,
+                "PHYSICALHEIGHT": 111,
+                "LOGPIXELSX": 88,
+                "LOGPIXELSY": 90,
+                "HORZRES": 8,
+                "VERTRES": 10,
+                "PHYSICALOFFSETX": 112,
+                "PHYSICALOFFSETY": 113
+            },
+            "printers": {
+                "Your Printer Name": {
+                    "label_width_in": 2.25,
+                    "label_height_in": 1.25,
+                    "dpi": 203,
+                    "bottom_margin": 15,
+                    "bluetooth_device_name": "",
+                    "bluetooth_wait_time": 3
+                }
+            }
+        }, indent=2))
+        print("\nSee README.md for detailed configuration documentation.")
+        sys.exit(1)
     
     # Load the config file
     try:
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
-        
-        # Merge with defaults to ensure all keys exist
-        for key, value in DEFAULT_CONFIG.items():
-            if key not in config:
-                config[key] = value
-        
         return config
+    except json.JSONDecodeError as e:
+        print(f"\nERROR: Invalid JSON in {CONFIG_FILE}: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error loading {CONFIG_FILE}: {e}")
-        print("Using default configuration")
-        return DEFAULT_CONFIG.copy()
+        print(f"\nERROR: Failed to load {CONFIG_FILE}: {e}")
+        sys.exit(1)
 
 def save_config(config):
     """Save configuration to JSON file"""
@@ -280,7 +256,7 @@ if __name__ == "__main__":
     # Set up argument parser
     parser = argparse.ArgumentParser(
         description='Print date labels on a thermal label printer',
-        epilog='Configuration is stored in printer-config.json (created automatically on first run)'
+        epilog='Configuration is stored in printer-config.json (must be created manually)'
     )
     parser.add_argument('-l', '--list', action='store_true', 
                         help='Force printer selection menu (ignore default printer)')

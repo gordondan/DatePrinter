@@ -1,0 +1,46 @@
+{
+  "default_printer": "Your Printer Name",
+  "date_format": "%B %d, %Y",
+  "font_path": "C:\\Windows\\Fonts\\arial.ttf",
+  "max_retries": 3,
+  "wait_between_tries": 2,
+  "pause_between_labels": 1,
+  "default_text_height_ratio": 0.15,
+  "max_text_width_ratio": 0.85,
+  "min_font_size": 10,
+  "max_font_size": 500,
+  "month_size_ratios": {
+    "January": 0.15,
+    "February": 0.15,
+    "March": 0.15,
+    "April": 0.15,
+    "May": 0.12,
+    "June": 0.15,
+    "July": 0.15,
+    "August": 0.15,
+    "September": 0.16,
+    "October": 0.15,
+    "November": 0.165,
+    "December": 0.165
+  },
+  "windows_device_caps": {
+    "PHYSICALWIDTH": 110,
+    "PHYSICALHEIGHT": 111,
+    "LOGPIXELSX": 88,
+    "LOGPIXELSY": 90,
+    "HORZRES": 8,
+    "VERTRES": 10,
+    "PHYSICALOFFSETX": 112,
+    "PHYSICALOFFSETY": 113
+  },
+  "printers": {
+    "Your Printer Name": {
+      "label_width_in": 2.25,
+      "label_height_in": 1.25,
+      "dpi": 203,
+      "bottom_margin": 15,
+      "bluetooth_device_name": "",
+      "bluetooth_wait_time": 3
+    }
+  }
+}
