@@ -105,6 +105,7 @@ The `printers` object contains settings for each printer. Add a new object for e
 - `label_height_in`: Label height in inches
 - `dpi`: Printer DPI (dots per inch)
 - `bottom_margin`: Bottom margin in pixels
+- `horizontal_offset`: Horizontal offset in pixels for printer positioning (0 = no offset)
 - `bluetooth_device_name`: Bluetooth device name for auto-reconnection (optional)
 - `bluetooth_wait_time`: Seconds to wait after Bluetooth reconnection attempt
 

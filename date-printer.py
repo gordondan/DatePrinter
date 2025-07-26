@@ -82,6 +82,7 @@ def get_printer_config(config, printer_name):
             "label_height_in": 1.25,
             "dpi": 203,
             "bottom_margin": 15,
+            "horizontal_offset": 0,
             "bluetooth_device_name": "",
             "bluetooth_wait_time": 3
         }
@@ -165,10 +166,17 @@ def generate_label_image(date_str, date_obj, config, printer_config):
     draw_x = x - bbox[0]
     draw_y = y - bbox[1]
     
-    # Add safety check to prevent left cutoff
+    # Add safety checks to prevent cutoff
     if draw_x < 0:
         print(f"WARNING: Text would be cut off on left! Adjusting from {draw_x} to 0")
         draw_x = 0
+    
+    # Check right edge
+    right_edge = draw_x + text_width
+    if right_edge > width_px:
+        print(f"WARNING: Text would be cut off on right! Right edge: {right_edge}, limit: {width_px}")
+        print(f"Adjusting draw_x from {draw_x} to {width_px - text_width}")
+        draw_x = width_px - text_width
     
     # Draw the text at the calculated position
     draw.text((draw_x, draw_y), date_str, font=font, fill=0)
@@ -181,7 +189,9 @@ def generate_label_image(date_str, date_obj, config, printer_config):
     print(f"Logical center position: x={x}, y={y}")
     print(f"Final draw position: ({draw_x}, {draw_y})")
     print(f"Label dimensions: {width_px}x{height_px}")
-    print(f"Text will occupy: x={draw_x} to x={draw_x + text_width}")
+    print(f"Text will occupy: x={draw_x} to x={draw_x + text_width} (image width: {width_px})")
+    if draw_x + text_width > width_px:
+        print(f"⚠️  TEXT EXTENDS BEYOND IMAGE! Overflow: {draw_x + text_width - width_px}px")
     print(f"Bottom margin: {printer_config['bottom_margin']}px")
     
     image.save("label_preview.png")  # Optional preview
@@ -228,22 +238,23 @@ def print_label(image, printer_name, config, printer_config):
         # Create the DIB from our image
         dib = ImageWin.Dib(image)
         
-        # The printer is centering on the left edge, so we need to shift by half the label width
-        # Calculate half the label width in pixels
-        half_label_width = int(printer_config['label_width_in'] * printer_config['dpi'] / 2)
+        # Apply horizontal offset if configured
+        h_offset = printer_config.get('horizontal_offset', 0)
         
-        # Draw with the image shifted right by half the label width
+        # Draw the image with optional horizontal offset
         dib.draw(hDC.GetHandleOutput(), 
-                (half_label_width, 0, half_label_width + width_px, height_px))
+                (h_offset, 0, h_offset + width_px, height_px))
         
-        print(f"Applied horizontal offset: {half_label_width}px (half of {printer_config['label_width_in']}\" at {printer_config['dpi']} DPI)")
+        print(f"Drawing at position ({h_offset}, 0, {h_offset + width_px}, {height_px})")
+        if h_offset > 0:
+            print(f"Applied horizontal offset: {h_offset}px")
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
         print(f"Image size: {width_px}x{height_px} pixels (created at {printer_config['dpi']} DPI)")
-        print(f"Drew at coordinates: ({half_label_width}, 0, {half_label_width + width_px}, {height_px})")
+        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
         print(f"Expected physical size: {printer_config['label_width_in']}x{printer_config['label_height_in']} inches")
         return True
     except Exception as e:
