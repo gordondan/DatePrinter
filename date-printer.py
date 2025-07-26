@@ -12,75 +12,48 @@ import win32con
 
 # --- CONFIGURATION ---
 CONFIG_FILE = "printer-config.json"
+DEFAULT_CONFIG_FILE = "printer-config.json.default"
 
-# Default configuration structure
-DEFAULT_CONFIG = {
-    # Global settings
+# Minimal defaults if no config files exist
+MINIMAL_DEFAULTS = {
     "default_printer": None,
     "date_format": "%B %d, %Y",
     "font_path": "C:/Windows/Fonts/arialbd.ttf",
     "max_retries": 6,
     "wait_between_tries": 5,
-    "pause_between_labels": 1,  # seconds between multiple labels
-    
-    # Font size settings
-    "min_font_size": 10,
-    "max_font_size": 500,
-    "max_text_width_ratio": 0.85,  # Use 85% of label width
-    "default_text_height_ratio": 0.15,  # Default if month not specified
-    
-    # Month-specific size ratios (longer month names get smaller text)
-    "month_size_ratios": {
-        "January": 0.15,
-        "February": 0.14,
-        "March": 0.18,
-        "April": 0.18,
-        "May": 0.20,
-        "June": 0.19,
-        "July": 0.19,
-        "August": 0.16,
-        "September": 0.13,
-        "October": 0.15,
-        "November": 0.14,
-        "December": 0.14
-    },
-    
-    # Printer-specific settings (indexed by printer name)
-    "printers": {
-        "Munbyn RW402B(Bluetooth)": {
-            "bluetooth_device_name": "RW402B-20B0",
-            "label_width_in": 2.25,
-            "label_height_in": 1.25,
-            "dpi": 203,
-            "bottom_margin": 15,
-            "bluetooth_wait_time": 3  # seconds to wait after bluetooth connection
-        }
-    }
+    "printers": {}
 }
 
 def load_config():
     """Load configuration from JSON file with defaults"""
-    # Deep copy the default config to avoid modifying the original
-    config = json.loads(json.dumps(DEFAULT_CONFIG))
+    config = None
     
+    # Try to load user config first
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
-                saved_config = json.load(f)
-                # Merge saved config with defaults
-                for key, value in saved_config.items():
-                    if key == "printers" and isinstance(value, dict):
-                        # Merge printer-specific settings
-                        if "printers" not in config:
-                            config["printers"] = {}
-                        config["printers"].update(value)
-                    elif key == "month_size_ratios" and isinstance(value, dict):
-                        # Merge month ratios
-                        config["month_size_ratios"].update(value)
-                    else:
-                        config[key] = value
+                config = json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load config file: {e}")
+            print(f"Warning: Could not load {CONFIG_FILE}: {e}")
+    
+    # If no user config, try to load default config
+    if config is None and os.path.exists(DEFAULT_CONFIG_FILE):
+        try:
+            with open(DEFAULT_CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            print(f"Loaded default configuration from {DEFAULT_CONFIG_FILE}")
+        except Exception as e:
+            print(f"Warning: Could not load {DEFAULT_CONFIG_FILE}: {e}")
+    
+    # If still no config, use minimal defaults
+    if config is None:
+        config = MINIMAL_DEFAULTS.copy()
+        print("Using minimal built-in defaults")
+    
+    # Ensure required keys exist
+    for key in ['printers', 'month_size_ratios']:
+        if key not in config:
+            config[key] = {}
     
     return config
 
@@ -138,15 +111,17 @@ def generate_label_image(date_str, date_obj, config, printer_config):
 
     # Get month-specific size ratio
     month_name = date_obj.strftime("%B")
-    text_height_ratio = config['month_size_ratios'].get(month_name, config['default_text_height_ratio'])
+    text_height_ratio = config.get('month_size_ratios', {}).get(month_name, config.get('default_text_height_ratio', 0.15))
     
     # Calculate maximum dimensions
     max_text_height = int(height_px * text_height_ratio)
-    max_text_width = int(width_px * config['max_text_width_ratio'])
+    max_text_width = int(width_px * config.get('max_text_width_ratio', 0.85))
     
     # Find the right font size
-    font_size = config['min_font_size']
-    for size in range(config['min_font_size'], config['max_font_size']):
+    min_font = config.get('min_font_size', 10)
+    max_font = config.get('max_font_size', 500)
+    font_size = min_font
+    for size in range(min_font, max_font):
         font = ImageFont.truetype(config['font_path'], size)
         # Use textbbox to get accurate text dimensions
         bbox = draw.textbbox((0, 0), date_str, font=font)
@@ -352,7 +327,7 @@ if __name__ == "__main__":
             success = print_label(label_img, selected_printer, config, printer_config)
             if success:
                 if label_num < args.count:
-                    time.sleep(config['pause_between_labels'])
+                    time.sleep(config.get('pause_between_labels', 1))
                 break
             else:
                 print(f"  Retrying in {config['wait_between_tries']} seconds...")

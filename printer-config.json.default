@@ -1,0 +1,39 @@
+{
+  "default_printer": null,
+  "date_format": "%B %d, %Y",
+  "font_path": "C:/Windows/Fonts/arialbd.ttf",
+  "max_retries": 6,
+  "wait_between_tries": 5,
+  "pause_between_labels": 1,
+  
+  "min_font_size": 10,
+  "max_font_size": 500,
+  "max_text_width_ratio": 0.85,
+  "default_text_height_ratio": 0.15,
+  
+  "month_size_ratios": {
+    "January": 0.15,
+    "February": 0.14,
+    "March": 0.18,
+    "April": 0.18,
+    "May": 0.20,
+    "June": 0.19,
+    "July": 0.19,
+    "August": 0.16,
+    "September": 0.13,
+    "October": 0.15,
+    "November": 0.14,
+    "December": 0.14
+  },
+  
+  "printers": {
+    "Munbyn RW402B(Bluetooth)": {
+      "bluetooth_device_name": "RW402B-20B0",
+      "label_width_in": 2.25,
+      "label_height_in": 1.25,
+      "dpi": 203,
+      "bottom_margin": 15,
+      "bluetooth_wait_time": 3
+    }
+  }
+}
