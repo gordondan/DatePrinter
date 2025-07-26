@@ -204,17 +204,33 @@ def print_label(image, printer_name, config, printer_config):
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(printer_name)
         
-        # Get printer dimensions and DPI
-        printer_width = hDC.GetDeviceCaps(110)  # PHYSICALWIDTH
-        printer_height = hDC.GetDeviceCaps(111)  # PHYSICALHEIGHT
-        printer_dpi_x = hDC.GetDeviceCaps(88)   # LOGPIXELSX
-        printer_dpi_y = hDC.GetDeviceCaps(90)   # LOGPIXELSY
+        # Windows device capability constants
+        # Note: These should be in win32con but aren't always available
+        # Values are from Windows SDK wingdi.h
+        HORZRES = 8          # Horizontal width in pixels of printable area
+        VERTRES = 10         # Vertical height in pixels of printable area
+        LOGPIXELSX = 88      # Number of pixels per logical inch along X axis
+        LOGPIXELSY = 90      # Number of pixels per logical inch along Y axis
+        PHYSICALWIDTH = 110  # Physical width in device units (full paper)
+        PHYSICALHEIGHT = 111 # Physical height in device units (full paper)
+        PHYSICALOFFSETX = 112 # Left margin - distance from left edge to printable area
+        PHYSICALOFFSETY = 113 # Top margin - distance from top edge to printable area
         
-        # Calculate the actual printable area
-        printable_width = hDC.GetDeviceCaps(8)   # HORZRES
-        printable_height = hDC.GetDeviceCaps(10)  # VERTRES
-        offset_x = hDC.GetDeviceCaps(112)  # PHYSICALOFFSETX
-        offset_y = hDC.GetDeviceCaps(113)  # PHYSICALOFFSETY
+        # Get printer physical dimensions (in device units)
+        printer_width = hDC.GetDeviceCaps(PHYSICALWIDTH)
+        printer_height = hDC.GetDeviceCaps(PHYSICALHEIGHT)
+        
+        # Get printer DPI (dots per inch)
+        printer_dpi_x = hDC.GetDeviceCaps(LOGPIXELSX)
+        printer_dpi_y = hDC.GetDeviceCaps(LOGPIXELSY)
+        
+        # Get actual printable area (what the printer can actually print on)
+        printable_width = hDC.GetDeviceCaps(HORZRES)
+        printable_height = hDC.GetDeviceCaps(VERTRES)
+        
+        # Get physical margins (unprintable area offsets)
+        offset_x = hDC.GetDeviceCaps(PHYSICALOFFSETX)
+        offset_y = hDC.GetDeviceCaps(PHYSICALOFFSETY)
         
         print(f"\n=== Printer Info ===")
         print(f"Printer DPI: {printer_dpi_x}x{printer_dpi_y}")
