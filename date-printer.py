@@ -18,7 +18,7 @@ DATE_FORMAT = "%Y-%m-%d"
 MAX_RETRIES = 6
 WAIT_BETWEEN_TRIES = 5  # Seconds
 CONFIG_FILE = "printer-config.json"
-TEXT_HEIGHT_RATIO = 0.5  # Text fills 50% of label height instead of 75%
+TEXT_HEIGHT_RATIO = 0.3  # Text fills 30% of label height for smaller text
 
 def load_config():
     """Load configuration from JSON file"""
@@ -67,12 +67,13 @@ def generate_label_image(date_str):
 
     # Dynamically find the largest font size that fits TEXT_HEIGHT_RATIO of label height
     max_text_height = int(height_px * TEXT_HEIGHT_RATIO)
+    max_text_width = int(width_px * 0.8)  # Also limit to 80% of label width
     for size in range(10, 500):
         font = ImageFont.truetype(FONT_PATH, size)
         bbox = draw.textbbox((0, 0), date_str, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
-        if text_height > max_text_height or text_width > width_px:
+        if text_height > max_text_height or text_width > max_text_width:
             font_size = size - 1
             break
     font = ImageFont.truetype(FONT_PATH, font_size)
