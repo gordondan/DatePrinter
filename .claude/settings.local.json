@@ -12,7 +12,9 @@
       "Bash(rm:*)",
       "Bash(mv:*)",
       "Bash(ls:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

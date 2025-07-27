@@ -10,6 +10,7 @@ ENV/
 
 # Configuration
 printer-config.json
+.env
 
 # Test images
 label_preview.png
@@ -25,3 +26,4 @@ label_preview_test.png
 .DS_Store
 Thumbs.db
 label_preview.png
+.env.example
