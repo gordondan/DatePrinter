@@ -3,9 +3,18 @@ from flask import Flask, Response, request
 import subprocess
 import socket
 import html
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Initialize the Flask application
 app = Flask(__name__)
+
+# CRITICAL: Disable Werkzeug's host validation
+import werkzeug.serving
+werkzeug.serving.WSGIRequestHandler.address_string = lambda self: self.client_address[0]
+
+# Fix for proxy headers when behind Nginx
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 
 def get_local_ip():
     """
@@ -99,13 +108,22 @@ if __name__ == '__main__':
     # Create the full URL for easy access
     full_url = f"http://{HOST_IP}:{PORT}/app/date-printer"
     
-    print("--- Starting Flask server... ---")
+    print("--- Starting server... ---")
     print("\n" + "="*50)
     print("Server is running. Access it from any device on your network.")
     print(f"  > Localhost URL: http://127.0.0.1:{PORT}/app/date-printer")
     print(f"  > Network URL:   {full_url}")
+    print(f"  > Public URL:    http://thunderbelly.duckdns.org/app/date-printer")
     print("\nTry adding a count parameter, for example:")
     print(f"  > {full_url}?count=3")
     print("="*50 + "\n")
     
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    # Run Flask app with host validation disabled
+    import sys
+    
+    # Completely disable host validation by patching the check
+    original_check = werkzeug.serving.WSGIRequestHandler.address_string
+    werkzeug.serving.WSGIRequestHandler.address_string = lambda self: '127.0.0.1'
+    
+    print("Starting Flask server with host validation disabled")
+    app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)

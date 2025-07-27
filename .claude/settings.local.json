@@ -14,7 +14,11 @@
       "Bash(ls:*)",
       "Bash(chmod:*)",
       "Bash(mkdir:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker-compose:*)",
+      "Bash(grep:*)",
+      "Bash(docker logs:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
