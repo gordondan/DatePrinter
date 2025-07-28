@@ -77,7 +77,7 @@ class DiceWrapperGenerator:
         draw.rectangle((border_margin, border_margin, 
                        label_width_px - border_margin - 1, 
                        label_height_px - border_margin - 1), 
-                      outline='lightgray', width=1)
+                      outline='lightgray', width=5)
         
         # Load font
         try:
@@ -114,11 +114,11 @@ class DiceWrapperGenerator:
         # Top horizontal bar
         draw.rectangle((x_offset - 2, y_offset - 2, 
                        x_offset + 4 * face_size_px + 2, y_offset + face_size_px + 2), 
-                      outline='black', width=2)
+                      outline='black', width=10)
         # Vertical stem (aligned with face 2)
         draw.rectangle((stem_x - 2, y_offset + face_size_px - 2,
                        stem_x + face_size_px + 2, y_offset + 3 * face_size_px + 2),
-                      outline='black', width=2)
+                      outline='black', width=10)
         
         # Generate and place ArUco markers for each face
         for face_num, (x, y) in face_positions.items():
@@ -139,7 +139,7 @@ class DiceWrapperGenerator:
             
             # Draw face boundary
             draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
-                         outline='lightgray', width=1)
+                         outline='lightgray', width=5)
             
             # Add face number in corner
             draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
@@ -147,14 +147,14 @@ class DiceWrapperGenerator:
             # Draw fold lines
             if face_num in [2, 3]:  # Vertical folds between top faces
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='lightgray', width=1)
+                        fill='lightgray', width=5)
             elif face_num == 4:  # Fold from left edge to center
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='lightgray', width=1)
+                        fill='lightgray', width=5)
             elif face_num in [1, 6]:  # Horizontal fold lines on stem
                 if face_num == 1:
                     draw.line((x, y, x + face_size_px, y), 
-                            fill='lightgray', width=1)
+                            fill='lightgray', width=5)
         
         # Add instructions at the top, above the T shape
         instructions = "Capital T Die Wrapper: Place die with face 2 on top"
