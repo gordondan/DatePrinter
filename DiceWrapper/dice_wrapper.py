@@ -133,9 +133,10 @@ class DiceWrapperGenerator:
             marker_size = int(face_size_px * 0.7)  # 70% of face size
             # Handle different OpenCV versions
             try:
-                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+                # Use face_num - 1 since ArUco IDs start at 0
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num - 1, marker_size)
             except AttributeError:
-                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num - 1, marker_size)
             marker_pil = Image.fromarray(marker_img)
             
             # Center marker in face
@@ -162,12 +163,14 @@ class DiceWrapperGenerator:
                     draw.line((x, y, x + face_size_px, y), 
                             fill='lightgray', width=1)
         
-        # Add instructions
+        # Add instructions at the top, above the T shape
         instructions = "Capital T Die Wrapper: Place die with face 2 on top"
-        draw.text((margin, margin), instructions, fill='black', font=font)
+        instructions_y = max(margin, y_offset - font_size - margin)
+        draw.text((margin, instructions_y), instructions, fill='black', font=font)
         
-        # Add assembly guide
-        guide_y = label_height_px - margin - font_size * 3
+        # Add assembly guide at the bottom, below the T shape
+        guide_y = min(label_height_px - margin - font_size * 4, 
+                      y_offset + 3 * face_size_px + margin * 2)
         guide_text = "1. Place die with face 2 on top in position 2\n2. Fold faces 4 & 5 down as sides\n3. Fold face 3 over as opposite side\n4. Fold stem (1 & 6) down as front/bottom"
         draw.text((margin, guide_y), guide_text, fill='black', font=small_font)
         
@@ -240,9 +243,9 @@ class DiceWrapperGenerator:
             marker_size = int(face_size_px * 0.7)
             # Handle different OpenCV versions
             try:
-                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num - 1, marker_size)
             except AttributeError:
-                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num - 1, marker_size)
             marker_pil = Image.fromarray(marker_img)
             
             # Center marker
