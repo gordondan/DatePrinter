@@ -72,6 +72,13 @@ class DiceWrapperGenerator:
         img = Image.new('RGB', (label_width_px, label_height_px), 'white')
         draw = ImageDraw.Draw(img)
         
+        # Draw 3% margin border box
+        border_margin = int(min(label_width_px, label_height_px) * 0.03)
+        draw.rectangle((border_margin, border_margin, 
+                       label_width_px - border_margin - 1, 
+                       label_height_px - border_margin - 1), 
+                      outline='lightgray', width=1)
+        
         # Load font
         try:
             font_size = face_size_px // 6
