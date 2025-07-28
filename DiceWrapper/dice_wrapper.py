@@ -139,7 +139,7 @@ class DiceWrapperGenerator:
             
             # Draw face boundary
             draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
-                         outline='black', width=10)
+                         outline='black', width=7)
             
             # Add face number in corner
             draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
@@ -147,14 +147,14 @@ class DiceWrapperGenerator:
             # Draw fold lines
             if face_num in [2, 3]:  # Vertical folds between top faces
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='black', width=10)
+                        fill='black', width=7)
             elif face_num == 4:  # Fold from left edge to center
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='black', width=10)
+                        fill='black', width=7)
             elif face_num in [1, 6]:  # Horizontal fold lines on stem
                 if face_num == 1:
                     draw.line((x, y, x + face_size_px, y), 
-                            fill='black', width=10)
+                            fill='black', width=7)
         
         # Add instructions at the top, above the T shape
         instructions = "Capital T Die Wrapper: Place die with face 2 on top"
