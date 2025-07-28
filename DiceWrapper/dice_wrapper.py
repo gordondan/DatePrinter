@@ -99,13 +99,15 @@ class DiceWrapperGenerator:
         y_offset = (label_height_px - t_height) // 2
         
         # Face positions in capital T-shape
+        # Stem should be centered under face 2
+        stem_x = x_offset + face_size_px  # Aligned with face 2
         face_positions = {
-            4: (x_offset, y_offset),                           # Top left
-            2: (x_offset + face_size_px, y_offset),           # Top center-left (die top)
-            3: (x_offset + 2 * face_size_px, y_offset),       # Top center-right  
-            5: (x_offset + 3 * face_size_px, y_offset),       # Top right
-            1: (x_offset + face_size_px + face_size_px // 2, y_offset + face_size_px),  # Middle (die front)
-            6: (x_offset + face_size_px + face_size_px // 2, y_offset + 2 * face_size_px) # Bottom
+            4: (x_offset, y_offset),                    # Top left
+            2: (x_offset + face_size_px, y_offset),     # Top center-left (die top)
+            3: (x_offset + 2 * face_size_px, y_offset), # Top center-right  
+            5: (x_offset + 3 * face_size_px, y_offset), # Top right
+            1: (stem_x, y_offset + face_size_px),       # Middle (die front)
+            6: (stem_x, y_offset + 2 * face_size_px)    # Bottom
         }
         
         # Draw cutting outline for capital T-shape
@@ -113,8 +115,7 @@ class DiceWrapperGenerator:
         draw.rectangle((x_offset - 2, y_offset - 2, 
                        x_offset + 4 * face_size_px + 2, y_offset + face_size_px + 2), 
                       outline='black', width=2)
-        # Vertical stem  
-        stem_x = x_offset + face_size_px + face_size_px // 2
+        # Vertical stem (aligned with face 2)
         draw.rectangle((stem_x - 2, y_offset + face_size_px - 2,
                        stem_x + face_size_px + 2, y_offset + 3 * face_size_px + 2),
                       outline='black', width=2)
@@ -168,22 +169,20 @@ class DiceWrapperGenerator:
         
         return img.convert('L'), {"type": "single_t", "face_size_px": face_size_px}
     
-    def generate_combined_label(self, dice_size_mm=16, printer_config=None, label_size="small"):
+    def generate_combined_label(self, dice_size_mm=16, printer_config=None, label_size="large"):
         """Generate T-shape label for wrapping dice"""
         if printer_config is None:
-            label_info = self.label_sizes.get(label_size, self.label_sizes["small"])
+            label_info = self.label_sizes.get(label_size, self.label_sizes["large"])
             dpi = 203
             label_width_in = label_info["width"]
             label_height_in = label_info["height"]
         else:
             dpi = printer_config.get('dpi', 203)
-            label_width_in = printer_config.get('label_width_in', 2.25)
-            label_height_in = printer_config.get('label_height_in', 1.25)
-            # Determine label size from dimensions
-            if label_width_in >= 4 and label_height_in >= 3:
-                label_size = "large"
-            else:
-                label_size = "small"
+            # For DiceWrapper, always use large label in portrait
+            label_width_in = printer_config.get('label_width_in', 4)
+            label_height_in = printer_config.get('label_height_in', 6)
+            # Force large label size for dice wrapper
+            label_size = "large"
         
         # Generate T-shape layout
         img, layout_info = self.generate_t_shape_layout(dice_size_mm, dpi, label_size)
@@ -248,8 +247,8 @@ def get_printer_config(config, printer_name):
         if "printers" not in config:
             config["printers"] = {}
         config["printers"][printer_name] = {
-            "label_width_in": 2.25,
-            "label_height_in": 1.25,
+            "label_width_in": 4,      # Portrait orientation
+            "label_height_in": 6,     # Portrait orientation
             "dpi": 203,
             "positioning_mode": "auto",
             "horizontal_offset": 0
