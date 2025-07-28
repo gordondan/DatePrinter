@@ -12,12 +12,14 @@ ENV/
 printer-config.json
 DatePrinter/printer-config.json
 MachineReadableDice/dice-config.json
+DiceWrapper/wrapper-config.json
 .env
 
 # Test images
 label_preview.png
 DatePrinter/label_preview.png
 MachineReadableDice/generated_aruco_dice/
+DiceWrapper/generated_dice_wrappers/
 label_preview_test.png
 
 # IDE

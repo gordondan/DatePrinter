@@ -18,7 +18,9 @@
       "Bash(docker-compose:*)",
       "Bash(grep:*)",
       "Bash(docker logs:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(cp:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
