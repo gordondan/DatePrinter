@@ -17,49 +17,78 @@ from LabelPrinter import LabelGenerator, LabelPrinter
 class DiceWrapperGenerator:
     def __init__(self, config):
         self.config = config
-        self.aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+        # Handle different OpenCV versions
+        try:
+            self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        except AttributeError:
+            self.aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
         
         # Standard dice is typically 16mm (5/8 inch)
         self.default_dice_size_mm = 16
+        
+        # Label sizes
+        self.label_sizes = {
+            "small": {"width": 2.25, "height": 1.25},  # inches
+            "large": {"width": 6, "height": 4}          # inches
+        }
         
     def mm_to_pixels(self, mm, dpi):
         """Convert millimeters to pixels at given DPI"""
         inches = mm / 25.4
         return int(inches * dpi)
     
-    def generate_first_layer(self, dice_size_mm=16, dpi=203, label_height_in=1.25):
-        """Generate first layer strip with alignment guides and registration marks
+    def generate_t_shape_layout(self, dice_size_mm=16, dpi=203, label_size="small"):
+        """Generate T-shape layout for wrapping dice with ArUco markers
         
-        The first layer wraps around faces 1-2-3-4 with overlap on face 1.
-        Face layout when die is oriented with 1 on top:
-        - Strip goes: 4 (left) -> 2 (front) -> 3 (right) -> 5 (back) -> overlap area
+        T-shape layout:
+        - Horizontal strip: 4 faces wrapping around middle (2-3-5-4)
+        - Vertical strip: 3 faces wrapping perpendicular (6-front-1)
+        
+        Returns: (image, layout_info) where layout_info indicates if T was split
         """
+        # Get label dimensions
+        label_info = self.label_sizes.get(label_size, self.label_sizes["small"])
+        label_width_px = int(label_info["width"] * dpi)
+        label_height_px = int(label_info["height"] * dpi)
+        
         face_size_px = self.mm_to_pixels(dice_size_mm, dpi)
         margin = self.mm_to_pixels(2, dpi)  # 2mm margin for cutting
-        overlap_size = face_size_px // 3  # 1/3 face overlap for secure adhesion
         
-        # Calculate strip dimensions
-        strip_width = (4 * face_size_px) + overlap_size + (2 * margin)
-        strip_height = face_size_px + (2 * margin)
+        # Check if T-shape fits as single piece
+        # T-shape dimensions: 3 faces wide x 4 faces tall (with center intersection)
+        t_width = 3 * face_size_px + 2 * margin
+        t_height = 4 * face_size_px + 2 * margin
         
-        # Ensure it fits on label
-        label_height_px = int(label_height_in * dpi)
-        if strip_height > label_height_px:
-            # Scale down if needed
-            scale = label_height_px / strip_height
-            face_size_px = int(face_size_px * scale)
-            margin = int(margin * scale)
-            overlap_size = int(overlap_size * scale)
-            strip_width = (4 * face_size_px) + overlap_size + (2 * margin)
-            strip_height = face_size_px + (2 * margin)
+        # Decision logic: use separate strips if T doesn't fit
+        use_separate_strips = (t_width > label_width_px or t_height > label_height_px)
         
-        # Create image
-        img = Image.new('RGB', (strip_width, strip_height), 'white')
+        # Alternative check: if 3x die size > label width * 0.8, use separate strips
+        if 3 * dice_size_mm > label_info["width"] * 25.4 * 0.8:
+            use_separate_strips = True
+        
+        if use_separate_strips:
+            # Generate separate strips that fit on label
+            return self._generate_separate_strips(dice_size_mm, dpi, label_width_px, label_height_px, face_size_px, margin)
+        else:
+            # Generate single T-shape
+            return self._generate_single_t_shape(dice_size_mm, dpi, label_width_px, label_height_px, face_size_px, margin)
+    
+    def _generate_single_t_shape(self, dice_size_mm, dpi, label_width_px, label_height_px, face_size_px, margin):
+        """Generate a single T-shape label with ArUco markers
+        
+        Layout:
+                [1]
+                [2]
+        [4] [3] [center] [5]
+                [6]
+        """
+        # Create image for full label
+        img = Image.new('RGB', (label_width_px, label_height_px), 'white')
         draw = ImageDraw.Draw(img)
         
         # Load font
         try:
-            font_size = face_size_px // 4
+            font_size = face_size_px // 6
             if sys.platform == 'win32':
                 font_path = self.config.get('font_path', 'C:\\Windows\\Fonts\\arial.ttf')
             else:
@@ -70,90 +99,218 @@ class DiceWrapperGenerator:
             font = ImageFont.load_default()
             small_font = font
         
-        # Draw cutting guides
-        draw.rectangle((0, 0, strip_width-1, strip_height-1), outline='black', width=2)
+        # Calculate T-shape center position
+        t_width = 3 * face_size_px
+        t_height = 4 * face_size_px
+        x_offset = (label_width_px - t_width) // 2
+        y_offset = (label_height_px - t_height) // 2
         
-        # Draw face boundaries and content
-        faces = [
-            ("4", "Face 4", False),
-            ("2", "Face 2", False), 
-            ("3", "Face 3", False),
-            ("5", "Face 5", False),
-            ("1", "Overlap\n(Face 1)", True)
-        ]
+        # Face positions in T-shape
+        face_positions = {
+            1: (x_offset + face_size_px, y_offset),                    # Top
+            2: (x_offset + face_size_px, y_offset + face_size_px),     # Center top
+            3: (x_offset + face_size_px, y_offset + 2 * face_size_px), # Center (intersection)
+            4: (x_offset, y_offset + 2 * face_size_px),                # Left
+            5: (x_offset + 2 * face_size_px, y_offset + 2 * face_size_px), # Right
+            6: (x_offset + face_size_px, y_offset + 3 * face_size_px)  # Bottom
+        }
         
-        x = margin
-        for i, (face_num, label, is_overlap) in enumerate(faces):
-            if i < 4:
-                face_width = face_size_px
-            else:
-                face_width = overlap_size
+        # Draw cutting outline for T-shape
+        # Vertical part
+        draw.rectangle((x_offset + face_size_px - 2, y_offset - 2, 
+                       x_offset + 2 * face_size_px + 2, y_offset + 4 * face_size_px + 2), 
+                      outline='black', width=2)
+        # Horizontal part
+        draw.rectangle((x_offset - 2, y_offset + 2 * face_size_px - 2,
+                       x_offset + 3 * face_size_px + 2, y_offset + 3 * face_size_px + 2),
+                      outline='black', width=2)
+        
+        # Generate and place ArUco markers for each face
+        for face_num, (x, y) in face_positions.items():
+            # Generate ArUco marker
+            marker_size = int(face_size_px * 0.7)  # 70% of face size
+            # Handle different OpenCV versions
+            try:
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+            except AttributeError:
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+            marker_pil = Image.fromarray(marker_img)
+            
+            # Center marker in face
+            marker_x = x + (face_size_px - marker_size) // 2
+            marker_y = y + (face_size_px - marker_size) // 2
+            img.paste(marker_pil, (marker_x, marker_y))
             
             # Draw face boundary
-            draw.rectangle((x, margin, x + face_width, margin + face_size_px), 
-                         outline='gray', width=1)
+            draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
+                         outline='lightgray', width=1)
             
-            # Draw registration marks (corners)
-            mark_size = face_size_px // 10
-            # Top-left
-            draw.line((x + mark_size, margin, x, margin), fill='black', width=2)
-            draw.line((x, margin, x, margin + mark_size), fill='black', width=2)
-            # Top-right
-            draw.line((x + face_width - mark_size, margin, x + face_width, margin), fill='black', width=2)
-            draw.line((x + face_width, margin, x + face_width, margin + mark_size), fill='black', width=2)
-            # Bottom-left
-            draw.line((x + mark_size, margin + face_size_px, x, margin + face_size_px), fill='black', width=2)
-            draw.line((x, margin + face_size_px - mark_size, x, margin + face_size_px), fill='black', width=2)
-            # Bottom-right
-            draw.line((x + face_width - mark_size, margin + face_size_px, x + face_width, margin + face_size_px), fill='black', width=2)
-            draw.line((x + face_width, margin + face_size_px - mark_size, x + face_width, margin + face_size_px), fill='black', width=2)
+            # Add face number in corner
+            draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
             
-            # Add center registration dot
-            center_x = x + face_width // 2
-            center_y = margin + face_size_px // 2
-            dot_radius = face_size_px // 20
-            draw.ellipse((center_x - dot_radius, center_y - dot_radius,
-                         center_x + dot_radius, center_y + dot_radius),
-                        fill='black')
-            
-            # Add face number and instructions
-            if is_overlap:
-                # Overlap area - just instructions
-                text = "Overlap\nhere"
-                bbox = draw.textbbox((0, 0), text, font=small_font)
-                text_width = bbox[2] - bbox[0]
-                text_height = bbox[3] - bbox[1]
-                text_x = x + (face_width - text_width) // 2
-                text_y = margin + (face_size_px - text_height) // 2
-                draw.text((text_x, text_y), text, fill='red', font=small_font, align='center')
-            else:
-                # Regular face - add number
-                bbox = draw.textbbox((0, 0), face_num, font=font)
-                text_width = bbox[2] - bbox[0]
-                text_height = bbox[3] - bbox[1]
-                text_x = x + (face_width - text_width) // 2
-                text_y = margin + (face_size_px - text_height) // 2
-                draw.text((text_x, text_y), face_num, fill='gray', font=font)
-                
-                # Add small label
-                bbox = draw.textbbox((0, 0), label, font=small_font)
-                text_width = bbox[2] - bbox[0]
-                label_y = margin + face_size_px - font_size // 2 - 5
-                draw.text((x + (face_width - text_width) // 2, label_y), 
-                         label, fill='gray', font=small_font)
-            
-            # Draw fold line (except for last overlap section)
-            if i < len(faces) - 1:
-                draw.line((x + face_width, margin - 5, x + face_width, margin + face_size_px + 5),
-                         fill='lightgray', width=1)
-            
-            x += face_width
+            # Draw fold lines
+            if face_num in [1, 2, 4, 5]:  # Not for center (3) or bottom (6)
+                if face_num in [1, 2]:  # Vertical fold lines
+                    draw.line((x, y + face_size_px, x + face_size_px, y + face_size_px), 
+                            fill='lightgray', width=1)
+                elif face_num == 4:  # Left fold line
+                    draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
+                            fill='lightgray', width=1)
+                elif face_num == 5:  # Right fold line
+                    draw.line((x, y, x, y + face_size_px), 
+                            fill='lightgray', width=1)
         
         # Add instructions
-        instructions = "Layer 1: Wrap around die with 1 on top. Start with face 4 on left side."
-        draw.text((margin, 2), instructions, fill='black', font=small_font)
+        instructions = "T-Shape Die Wrapper: Place die with any face up in center (3), fold sides"
+        draw.text((margin, margin), instructions, fill='black', font=font)
         
-        return img, face_size_px, margin
+        # Add assembly guide
+        guide_y = label_height_px - margin - font_size * 3
+        guide_text = "1. Place die in center square\n2. Fold up all sides\n3. Sides overlap at edges"
+        draw.text((margin, guide_y), guide_text, fill='black', font=small_font)
+        
+        return img.convert('L'), {"type": "single_t", "face_size_px": face_size_px}
+    
+    def _generate_separate_strips(self, dice_size_mm, dpi, label_width_px, label_height_px, face_size_px, margin):
+        """Generate two separate strips: horizontal (4 faces) and vertical (3 faces)"""
+        img = Image.new('RGB', (label_width_px, label_height_px), 'white')
+        draw = ImageDraw.Draw(img)
+        
+        # Load font
+        try:
+            font_size = face_size_px // 6
+            if sys.platform == 'win32':
+                font_path = self.config.get('font_path', 'C:\\Windows\\Fonts\\arial.ttf')
+            else:
+                font_path = self.config.get('font_path', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf')
+            font = ImageFont.truetype(font_path, font_size)
+            small_font = ImageFont.truetype(font_path, font_size // 2)
+        except:
+            font = ImageFont.load_default()
+            small_font = font
+        
+        # Calculate strip sizes
+        h_strip_width = 4 * face_size_px + 2 * margin
+        h_strip_height = face_size_px + 2 * margin
+        v_strip_width = face_size_px + 2 * margin
+        v_strip_height = 3 * face_size_px + 2 * margin
+        
+        # Position strips on label
+        h_strip_x = (label_width_px - h_strip_width) // 2
+        h_strip_y = margin
+        
+        v_strip_x = (label_width_px - v_strip_width) // 2
+        v_strip_y = h_strip_y + h_strip_height + margin
+        
+        # Check if both strips fit
+        if v_strip_y + v_strip_height > label_height_px:
+            # Try side-by-side layout
+            if h_strip_width + v_strip_width + 3 * margin <= label_width_px:
+                h_strip_x = margin
+                v_strip_x = h_strip_x + h_strip_width + margin
+                v_strip_y = margin
+            else:
+                # Scale down
+                scale = min((label_height_px - 3 * margin) / (h_strip_height + v_strip_height),
+                           (label_width_px - 2 * margin) / max(h_strip_width, v_strip_width))
+                face_size_px = int(face_size_px * scale)
+                margin = int(margin * scale)
+                # Recalculate with scaled dimensions
+                h_strip_width = 4 * face_size_px + 2 * margin
+                h_strip_height = face_size_px + 2 * margin
+                v_strip_width = face_size_px + 2 * margin
+                v_strip_height = 3 * face_size_px + 2 * margin
+                h_strip_x = (label_width_px - h_strip_width) // 2
+                h_strip_y = margin
+                v_strip_x = (label_width_px - v_strip_width) // 2
+                v_strip_y = h_strip_y + h_strip_height + margin
+        
+        # Draw horizontal strip (faces 2, 3, 5, 4)
+        draw.rectangle((h_strip_x, h_strip_y, h_strip_x + h_strip_width, h_strip_y + h_strip_height),
+                      outline='black', width=2)
+        
+        h_faces = [2, 3, 5, 4]  # Wrap around middle
+        for i, face_num in enumerate(h_faces):
+            x = h_strip_x + margin + i * face_size_px
+            y = h_strip_y + margin
+            
+            # Generate ArUco marker
+            marker_size = int(face_size_px * 0.7)
+            # Handle different OpenCV versions
+            try:
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+            except AttributeError:
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+            marker_pil = Image.fromarray(marker_img)
+            
+            # Center marker
+            marker_x = x + (face_size_px - marker_size) // 2
+            marker_y = y + (face_size_px - marker_size) // 2
+            img.paste(marker_pil, (marker_x, marker_y))
+            
+            # Face boundary
+            draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
+                         outline='lightgray', width=1)
+            
+            # Face number
+            draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
+            
+            # Fold lines
+            if i < len(h_faces) - 1:
+                draw.line((x + face_size_px, y - margin//2, x + face_size_px, y + face_size_px + margin//2),
+                         fill='lightgray', width=1)
+        
+        # Draw vertical strip (faces 6, front, 1)
+        draw.rectangle((v_strip_x, v_strip_y, v_strip_x + v_strip_width, v_strip_y + v_strip_height),
+                      outline='black', width=2)
+        
+        v_faces = [6, 0, 1]  # 0 will be the overlapping center
+        for i, face_num in enumerate(v_faces):
+            x = v_strip_x + margin
+            y = v_strip_y + margin + i * face_size_px
+            
+            if face_num == 0:  # Center overlap area
+                draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
+                             outline='red', width=2)
+                text = "Overlap\nCenter"
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+                text_x = x + (face_size_px - text_width) // 2
+                text_y = y + (face_size_px - text_height) // 2
+                draw.text((text_x, text_y), text, fill='red', font=font, align='center')
+            else:
+                # Generate ArUco marker
+                marker_size = int(face_size_px * 0.7)
+                # Handle different OpenCV versions
+            try:
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+            except AttributeError:
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+                marker_pil = Image.fromarray(marker_img)
+                
+                # Center marker
+                marker_x = x + (face_size_px - marker_size) // 2
+                marker_y = y + (face_size_px - marker_size) // 2
+                img.paste(marker_pil, (marker_x, marker_y))
+                
+                # Face boundary
+                draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
+                             outline='lightgray', width=1)
+                
+                # Face number
+                draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
+            
+            # Fold lines
+            if i < len(v_faces) - 1:
+                draw.line((x - margin//2, y + face_size_px, x + face_size_px + margin//2, y + face_size_px),
+                         fill='lightgray', width=1)
+        
+        # Add instructions
+        instructions = "1. Apply horizontal strip around middle\n2. Apply vertical strip perpendicular"
+        draw.text((margin, margin), instructions, fill='black', font=font)
+        
+        return img.convert('L'), {"type": "separate_strips", "face_size_px": face_size_px}
     
     def generate_second_layer(self, dice_size_mm=16, dpi=203, label_height_in=1.25, 
                              face_size_px=None, margin=None):
@@ -189,7 +346,11 @@ class DiceWrapperGenerator:
         for i, face_num in enumerate(face_order):
             # Generate ArUco marker
             marker_size = int(face_size_px * 0.8)  # 80% of face size for margin
-            marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
+            # Handle different OpenCV versions
+            try:
+                marker_img = aruco.generateImageMarker(self.aruco_dict, face_num, marker_size)
+            except AttributeError:
+                marker_img = aruco.drawMarker(self.aruco_dict, face_num, marker_size)
             marker_pil = Image.fromarray(marker_img)
             
             # Calculate position to center marker
@@ -250,58 +411,27 @@ class DiceWrapperGenerator:
         
         return img
     
-    def generate_combined_label(self, dice_size_mm=16, printer_config=None):
-        """Generate both layers on a single label for printing"""
+    def generate_combined_label(self, dice_size_mm=16, printer_config=None, label_size="small"):
+        """Generate T-shape label for wrapping dice"""
         if printer_config is None:
+            label_info = self.label_sizes.get(label_size, self.label_sizes["small"])
             dpi = 203
-            label_width_in = 2.25
-            label_height_in = 1.25
+            label_width_in = label_info["width"]
+            label_height_in = label_info["height"]
         else:
             dpi = printer_config.get('dpi', 203)
             label_width_in = printer_config.get('label_width_in', 2.25)
             label_height_in = printer_config.get('label_height_in', 1.25)
+            # Determine label size from dimensions
+            if label_width_in >= 4 and label_height_in >= 3:
+                label_size = "large"
+            else:
+                label_size = "small"
         
-        label_width_px = int(label_width_in * dpi)
-        label_height_px = int(label_height_in * dpi)
+        # Generate T-shape layout
+        img, layout_info = self.generate_t_shape_layout(dice_size_mm, dpi, label_size)
         
-        # Generate both layers
-        layer1_img, face_size_px, margin = self.generate_first_layer(dice_size_mm, dpi, label_height_in)
-        layer2_img = self.generate_second_layer(dice_size_mm, dpi, label_height_in, face_size_px, margin)
-        
-        # Check if both strips fit on one label
-        strip_height = layer1_img.size[1]
-        total_height = 2 * strip_height + self.mm_to_pixels(2, dpi)  # 2mm gap
-        
-        if total_height <= label_height_px and layer1_img.size[0] <= label_width_px:
-            # Both fit on one label
-            combined_img = Image.new('RGB', (label_width_px, label_height_px), 'white')
-            
-            # Center strips horizontally
-            x_offset = (label_width_px - layer1_img.size[0]) // 2
-            
-            # Place first layer at top
-            y1 = self.mm_to_pixels(1, dpi)  # 1mm from top
-            combined_img.paste(layer1_img, (x_offset, y1))
-            
-            # Place second layer below
-            y2 = y1 + strip_height + self.mm_to_pixels(2, dpi)
-            combined_img.paste(layer2_img, (x_offset, y2))
-            
-            # Add title
-            draw = ImageDraw.Draw(combined_img)
-            try:
-                title_font = ImageFont.truetype(
-                    self.config.get('font_path', 'C:\\Windows\\Fonts\\arial.ttf'),
-                    self.mm_to_pixels(3, dpi)
-                )
-            except:
-                title_font = ImageFont.load_default()
-            
-            return combined_img.convert('L')  # Convert to grayscale for thermal printing
-        else:
-            # Too big for one label, return just the second layer (with ArUco markers)
-            # User will need to print twice or use regular printer
-            return layer2_img.convert('L')
+        return img
 
 
 def load_config():
@@ -382,8 +512,8 @@ def main():
                        help='Dice size in millimeters (default: 16mm)')
     parser.add_argument('-o', '--output', type=str,
                        help='Output file path for preview')
-    parser.add_argument('--layer', type=int, choices=[1, 2],
-                       help='Generate only specific layer (1 or 2)')
+    parser.add_argument('--label-size', type=str, choices=['small', 'large'], default='small',
+                       help='Label size: small (2.25x1.25") or large (4x6")')
     parser.add_argument('--dpi', type=int, default=203,
                        help='DPI for preview mode (default: 203)')
     args = parser.parse_args()
@@ -399,18 +529,13 @@ def main():
         output_folder = config.get('output_folder', 'generated_dice_wrappers')
         os.makedirs(output_folder, exist_ok=True)
         
-        if args.layer == 1:
-            # Generate only first layer
-            img, _, _ = generator.generate_first_layer(args.size, args.dpi)
-            default_name = "dice_wrapper_layer1.png"
-        elif args.layer == 2:
-            # Generate only second layer
-            img = generator.generate_second_layer(args.size, args.dpi)
-            default_name = "dice_wrapper_layer2.png"
+        # Generate T-shape layout
+        img, layout_info = generator.generate_t_shape_layout(args.size, args.dpi, args.label_size)
+        
+        if layout_info["type"] == "single_t":
+            default_name = "dice_wrapper_t_shape.png"
         else:
-            # Generate combined preview
-            img = generator.generate_combined_label(args.size)
-            default_name = "dice_wrapper_combined.png"
+            default_name = "dice_wrapper_strips.png"
         
         # Save preview
         if args.output:
@@ -422,6 +547,8 @@ def main():
         print(f"✅ Saved dice wrapper preview to {output_path}")
         print(f"   Image size: {img.size}")
         print(f"   Dice size: {args.size}mm")
+        print(f"   Label size: {args.label_size}")
+        print(f"   Layout type: {layout_info['type']}")
         return
     
     # Printing mode
@@ -486,7 +613,7 @@ def main():
     
     # Generate wrapper for label
     print(f"\nGenerating dice wrapper for {args.size}mm dice...")
-    label_img = generator.generate_combined_label(args.size, printer_config)
+    label_img = generator.generate_combined_label(args.size, printer_config, args.label_size)
     
     # Save preview
     output_folder = config.get('output_folder', 'generated_dice_wrappers')
@@ -504,10 +631,15 @@ def main():
         if success:
             print("✅ Successfully printed dice wrapper label!")
             print("\nInstructions:")
+            print("For T-shape layout:")
+            print("1. Cut out the T-shape along the black outline")
+            print("2. Place die in center square with any face up")
+            print("3. Fold all sides up around the die")
+            print("4. Sides will overlap at edges for secure fit")
+            print("\nFor separate strips:")
             print("1. Cut out both strips along the outer edges")
-            print("2. Apply Layer 1 first (with numbers) around the die horizontally")
-            print("3. Apply Layer 2 (with ArUco markers) perpendicular to Layer 1")
-            print("4. Use the registration marks to ensure proper alignment")
+            print("2. Apply horizontal strip around middle of die")
+            print("3. Apply vertical strip perpendicular, overlapping center")
             break
         else:
             if attempt < config.get('max_retries', 3) - 1:
