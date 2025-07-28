@@ -8,7 +8,7 @@ echo ""
 
 # Test today's date first
 echo -e "\033[33mTesting today's date...\033[0m"
-python3 date-printer.py
+python3 DatePrinter/date_printer.py
 sleep 2
 
 # Test dates for each month - alternating between single and double digit days
@@ -43,7 +43,7 @@ for test_entry in "${test_dates[@]}"; do
     IFS=':' read -r date month day <<< "$test_entry"
     echo ""
     echo -e "\033[32mTesting $month - Day $day (Date: $date)\033[0m"
-    python3 date-printer.py -d "$date"
+    python3 DatePrinter/date_printer.py -d "$date"
     
     # Pause between prints to avoid overwhelming the printer
     sleep 3
