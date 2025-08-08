@@ -179,8 +179,52 @@ def generate_label_image(date_str, date_obj, config, printer_config):
         print(f"Adjusting draw_x from {draw_x} to {width_px - text_width}")
         draw_x = width_px - text_width
     
-    # Draw the text at the calculated position
+    # Draw the main text at the calculated position
     draw.text((draw_x, draw_y), date_str, font=font, fill=0)
+    
+    # Draw the upside down date at the top
+    # Create a temporary image for the rotated text
+    temp_img = Image.new('L', (text_width + 40, text_height + 40), 255)  # Add more padding
+    temp_draw = ImageDraw.Draw(temp_img)
+    
+    # Draw text on temporary image with padding
+    temp_draw.text((20 - bbox[0], 20 - bbox[1]), date_str, font=font, fill=0)
+    
+    # Rotate the temporary image 180 degrees
+    rotated_temp = temp_img.rotate(180, expand=True)
+    
+    # Calculate position for the rotated text at the top
+    top_margin = 15  # 15px from top (same as bottom margin)
+    rotated_x = (width_px - rotated_temp.width) // 2  # Center horizontally
+    rotated_y = top_margin
+    
+    # Create a mask from the rotated image (black where text should go, white elsewhere)
+    mask = rotated_temp.point(lambda x: 255 if x < 128 else 0, mode='1')
+    
+    # Paste black pixels where the mask indicates text should be
+    black_overlay = Image.new('L', rotated_temp.size, 0)  # Solid black image
+    image.paste(black_overlay, (rotated_x, rotated_y), mask)
+    
+    # Draw 3px black border 3px from the edge
+    border_margin = 3
+    border_thickness = 3
+    
+    # Calculate border coordinates
+    left = border_margin
+    top = border_margin
+    right = width_px - border_margin
+    bottom = height_px - border_margin
+    
+    # Draw border as multiple rectangles for thickness
+    for i in range(border_thickness):
+        # Top border
+        draw.rectangle([left + i, top + i, right - i, top + i], fill=0)
+        # Bottom border
+        draw.rectangle([left + i, bottom - i, right - i, bottom - i], fill=0)
+        # Left border
+        draw.rectangle([left + i, top + i, left + i, bottom - i], fill=0)
+        # Right border
+        draw.rectangle([right - i, top + i, right - i, bottom - i], fill=0)
     
     # Debug info
     print(f"\n=== Debug Info ===")
@@ -302,6 +346,17 @@ def print_label(image, printer_name, config, printer_config):
         
         hDC.EndPage()
         hDC.EndDoc()
+        
+        # Force the printer to process the job immediately
+        try:
+            import win32print
+            printer_handle = win32print.OpenPrinter(printer_name)
+            win32print.FlushPrinter(printer_handle)
+            win32print.ClosePrinter(printer_handle)
+            print("Printer job flushed to device")
+        except Exception as flush_error:
+            print(f"Warning: Could not flush printer job: {flush_error}")
+        
         hDC.DeleteDC()
         print(f"Label sent to printer: {printer_name}")
         print(f"Image size: {width_px}x{height_px} pixels (created at {printer_config['dpi']} DPI)")

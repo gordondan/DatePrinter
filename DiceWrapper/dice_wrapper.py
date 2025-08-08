@@ -32,6 +32,20 @@ class DiceWrapperGenerator:
             "large": {"width": 4, "height": 6}          # inches (portrait orientation)
         }
         
+        # Visual configuration (line widths in pixels)
+        self.border_width = 10              # Border box line width
+        self.border_margin_ratio = 0.03     # Border margin as ratio of smallest dimension
+        self.t_outline_width = 20           # T-shape cutting outline width
+        self.face_boundary_width = 7        # Face boundary line width
+        self.fold_line_width = 7            # Fold line width
+        self.text_padding = 20              # Padding between border and text
+        self.t_clearance = 40               # Clearance between T-shape and text
+        
+        # Marker and font configuration
+        self.marker_size_ratio = 0.7        # ArUco marker size as ratio of face size
+        self.font_size_ratio = 1/6          # Font size as ratio of face size
+        self.cutting_margin_mm = 2          # Margin around shapes for cutting in mm
+        
     def mm_to_pixels(self, mm, dpi):
         """Convert millimeters to pixels at given DPI"""
         inches = mm / 25.4
@@ -53,7 +67,7 @@ class DiceWrapperGenerator:
         label_height_px = int(label_info["height"] * dpi)
         
         face_size_px = self.mm_to_pixels(dice_size_mm, dpi)
-        margin = self.mm_to_pixels(2, dpi)  # 2mm margin for cutting
+        margin = self.mm_to_pixels(self.cutting_margin_mm, dpi)  # margin for cutting
         
         # Generate single T-shape
         return self._generate_single_t_shape(dice_size_mm, dpi, label_width_px, label_height_px, face_size_px, margin)
@@ -72,16 +86,16 @@ class DiceWrapperGenerator:
         img = Image.new('RGB', (label_width_px, label_height_px), 'white')
         draw = ImageDraw.Draw(img)
         
-        # Draw 3% margin border box
-        border_margin = int(min(label_width_px, label_height_px) * 0.03)
+        # Draw margin border box
+        border_margin = int(min(label_width_px, label_height_px) * self.border_margin_ratio)
         draw.rectangle((border_margin, border_margin, 
                        label_width_px - border_margin - 1, 
                        label_height_px - border_margin - 1), 
-                      outline='black', width=10)
+                      outline='black', width=self.border_width)
         
         # Load font
         try:
-            font_size = face_size_px // 6
+            font_size = int(face_size_px * self.font_size_ratio)
             if sys.platform == 'win32':
                 font_path = self.config.get('font_path', 'C:\\Windows\\Fonts\\arial.ttf')
             else:
@@ -114,16 +128,16 @@ class DiceWrapperGenerator:
         # Top horizontal bar
         draw.rectangle((x_offset - 2, y_offset - 2, 
                        x_offset + 4 * face_size_px + 2, y_offset + face_size_px + 2), 
-                      outline='black', width=20)
+                      outline='black', width=self.t_outline_width)
         # Vertical stem (aligned with face 2)
         draw.rectangle((stem_x - 2, y_offset + face_size_px - 2,
                        stem_x + face_size_px + 2, y_offset + 3 * face_size_px + 2),
-                      outline='black', width=20)
+                      outline='black', width=self.t_outline_width)
         
         # Generate and place ArUco markers for each face
         for face_num, (x, y) in face_positions.items():
             # Generate ArUco marker
-            marker_size = int(face_size_px * 0.7)  # 70% of face size
+            marker_size = int(face_size_px * self.marker_size_ratio)
             # Handle different OpenCV versions
             try:
                 # Use face_num - 1 since ArUco IDs start at 0
@@ -139,7 +153,7 @@ class DiceWrapperGenerator:
             
             # Draw face boundary
             draw.rectangle((x, y, x + face_size_px, y + face_size_px), 
-                         outline='black', width=7)
+                         outline='black', width=self.face_boundary_width)
             
             # Add face number in corner
             draw.text((x + 3, y + 3), str(face_num), fill='red', font=small_font)
@@ -147,14 +161,14 @@ class DiceWrapperGenerator:
             # Draw fold lines
             if face_num in [2, 3]:  # Vertical folds between top faces
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='black', width=7)
+                        fill='black', width=self.fold_line_width)
             elif face_num == 4:  # Fold from left edge to center
                 draw.line((x + face_size_px, y, x + face_size_px, y + face_size_px), 
-                        fill='black', width=7)
+                        fill='black', width=self.fold_line_width)
             elif face_num in [1, 6]:  # Horizontal fold lines on stem
                 if face_num == 1:
                     draw.line((x, y, x + face_size_px, y), 
-                            fill='black', width=7)
+                            fill='black', width=self.fold_line_width)
         
         # Add instructions at the top, above the T shape
         instructions = "Capital T Die Wrapper: Place die with face 2 on top"

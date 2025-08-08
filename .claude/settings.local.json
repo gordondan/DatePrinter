@@ -21,7 +21,11 @@
       "Bash(cat:*)",
       "Bash(cp:*)",
       "Bash(git rm:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(wmic:*)",
+      "Bash(powershell:*)",
+      "Bash(net stop:*)",
+      "Bash(net start:*)"
     ],
     "deny": []
   }

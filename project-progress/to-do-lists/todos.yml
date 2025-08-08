@@ -1,0 +1,27 @@
+metadata:
+  display_name: Label Printer
+  generated_date: '2025-08-05'
+  last_updated: '2025-08-05T15:31:35.482350'
+  project_name: LabelPrinter
+  project_type: Home
+  source: api_initialization
+  total_todos: 1
+todos:
+- _hash: 6d44fb3c
+  assigned_to: null
+  category: setup
+  created_date: '2025-08-05'
+  dependencies: []
+  description: This is your first todo item. You can edit or delete it and start adding
+    your own tasks.
+  due_date: null
+  estimated_hours: 0.25
+  id: welcome-001
+  priority: medium
+  section: Project Setup
+  status: pending
+  subtasks: []
+  tags:
+  - welcome
+  - setup
+  title: Welcome to LabelPrinter Todo Management
