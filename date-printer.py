@@ -208,15 +208,21 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     
     # Handle message in center if provided
     if message:
-        # Calculate available space for message (between top margin and date)
+        # Calculate available space for message (between rotated top date and bottom date)
         top_margin = 15
-        # Available space is from after top margin to before date (with buffer)
-        space_start = top_margin + date_text_height + 10  # After top rotated date + buffer
-        space_end = date_y - 10  # Before bottom date - buffer
+        
+        # First, calculate where the rotated top date actually ends
+        # The rotated image dimensions need to be calculated
+        temp_img_height = date_text_height + 40  # Same padding as used in rotation
+        rotated_top_end = top_margin + temp_img_height
+        
+        # Available space is from after rotated top date to before bottom date (with buffers)
+        space_start = rotated_top_end + 5  # 5px buffer after rotated date
+        space_end = date_y - 5  # 5px buffer before bottom date
         available_height = space_end - space_start
         max_message_width = int(width_px * 0.9)  # 90% of width
         
-        print(f"DEBUG: space_start={space_start}, space_end={space_end}, available_height={available_height}")
+        print(f"DEBUG: rotated_top_end={rotated_top_end}, space_start={space_start}, space_end={space_end}, available_height={available_height}")
         
         # Find appropriate font size for message - make it reasonable size
         max_message_font = min(max_font, int(date_font_size * 1.2))  # Allow up to 120% of date font size
