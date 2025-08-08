@@ -213,10 +213,15 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
         available_height = date_y - top_margin - 10  # 10px buffer from date
         max_message_width = int(width_px * 0.9)  # 90% of width
         
-        # Find appropriate font size for message (start larger since we'll wrap)
+        # Find appropriate font size for message - start smaller and cap at reasonable size
+        max_message_font = min(max_font, int(date_font_size * 0.8))  # Cap at 80% of date font size
         message_font_size = min_font
-        for size in range(min_font, max_font):
-            # Try with bold font (use regular font path but we'll make it bold later)
+        final_lines = []
+        final_line_heights = []
+        final_line_widths = []
+        final_total_height = 0
+        
+        for size in range(min_font, max_message_font):
             font = ImageFont.truetype(config['font_path'], size)
             
             # Get wrapped lines for this font size
@@ -241,14 +246,32 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
                 final_line_widths = line_widths
                 final_total_height = total_height
             else:
-                # Previous size was the best fit
+                # This size is too big, use previous size
                 break
         
         # Use the determined font size for message
         message_font = ImageFont.truetype(config['font_path'], message_font_size)
         
+        # Ensure we have valid data (fallback if no font size worked)
+        if not final_lines:
+            # Fallback to minimum font size with whatever fits
+            font = ImageFont.truetype(config['font_path'], min_font)
+            final_lines = wrap_text_to_fit(message, font, draw, max_message_width)
+            final_line_heights = []
+            final_line_widths = []
+            for line in final_lines:
+                bbox = draw.textbbox((0, 0), line, font=font)
+                final_line_heights.append(bbox[3] - bbox[1])
+                final_line_widths.append(bbox[2] - bbox[0])
+            line_spacing = 2
+            final_total_height = sum(final_line_heights) + (len(final_lines) - 1) * line_spacing
+            message_font_size = min_font
+        
         # Calculate vertical centering for the entire text block
         block_start_y = top_margin + (available_height - final_total_height) // 2
+        
+        print(f"DEBUG: top_margin={top_margin}, available_height={available_height}, final_total_height={final_total_height}")
+        print(f"DEBUG: block_start_y calculated as: {top_margin} + ({available_height} - {final_total_height}) // 2 = {block_start_y}")
         
         # Draw each line, centered horizontally
         current_y = block_start_y
