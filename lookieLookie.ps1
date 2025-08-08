@@ -1,0 +1,1 @@
+$source = "label-printer-gui.py" ; $dt = Get-Date -Format "MMMM dd, yyyy"; $dest = [System.IO.Path]::Combine(("temp\\"),(Split-Path $source), "$([System.IO.Path]::GetFileNameWithoutExtension($source)) - $dt$([System.IO.Path]::GetExtension($source))"); Copy-Item $source $dest; python $dest

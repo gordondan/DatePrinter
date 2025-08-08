@@ -25,7 +25,8 @@
       "Bash(wmic:*)",
       "Bash(powershell:*)",
       "Bash(net stop:*)",
-      "Bash(net start:*)"
+      "Bash(net start:*)",
+      "Bash(if exist \"label-images\" rmdir /s /q \"label-images\")"
     ],
     "deny": []
   }
