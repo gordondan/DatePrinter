@@ -210,11 +210,16 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     if message:
         # Calculate available space for message (between top margin and date)
         top_margin = 15
-        available_height = date_y - top_margin - 10  # 10px buffer from date
+        # Available space is from after top margin to before date (with buffer)
+        space_start = top_margin + date_text_height + 10  # After top rotated date + buffer
+        space_end = date_y - 10  # Before bottom date - buffer
+        available_height = space_end - space_start
         max_message_width = int(width_px * 0.9)  # 90% of width
         
-        # Find appropriate font size for message - start smaller and cap at reasonable size
-        max_message_font = min(max_font, int(date_font_size * 0.8))  # Cap at 80% of date font size
+        print(f"DEBUG: space_start={space_start}, space_end={space_end}, available_height={available_height}")
+        
+        # Find appropriate font size for message - make it reasonable size
+        max_message_font = min(max_font, int(date_font_size * 1.2))  # Allow up to 120% of date font size
         message_font_size = min_font
         final_lines = []
         final_line_heights = []
@@ -267,11 +272,11 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
             final_total_height = sum(final_line_heights) + (len(final_lines) - 1) * line_spacing
             message_font_size = min_font
         
-        # Calculate vertical centering for the entire text block
-        block_start_y = top_margin + (available_height - final_total_height) // 2
+        # Calculate vertical centering for the entire text block within the available space
+        block_start_y = space_start + (available_height - final_total_height) // 2
         
-        print(f"DEBUG: top_margin={top_margin}, available_height={available_height}, final_total_height={final_total_height}")
-        print(f"DEBUG: block_start_y calculated as: {top_margin} + ({available_height} - {final_total_height}) // 2 = {block_start_y}")
+        print(f"DEBUG: space_start={space_start}, available_height={available_height}, final_total_height={final_total_height}")
+        print(f"DEBUG: block_start_y calculated as: {space_start} + ({available_height} - {final_total_height}) // 2 = {block_start_y}")
         
         # Draw each line, centered horizontally
         current_y = block_start_y
@@ -300,7 +305,7 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
             current_y += line_height + line_spacing
         
         # Store for debug output
-        msg_draw_x = line_x  # Use last line's x for debug
+        msg_draw_x = (width_px - max(final_line_widths)) // 2 if final_line_widths else 0  # Center of widest line
         msg_draw_y = block_start_y  # Use block start for debug
     
     # Draw the upside down date at the top
