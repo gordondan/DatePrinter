@@ -96,6 +96,38 @@ def list_printers():
         print(f"{i+1}: {printer[2]}")
     return printers
 
+def wrap_text_to_fit(text, font, draw, max_width):
+    """
+    Wrap text at word boundaries to fit within max_width.
+    Returns a list of lines.
+    """
+    words = text.split()
+    lines = []
+    current_line = []
+    
+    for word in words:
+        # Test if adding this word would exceed max width
+        test_line = ' '.join(current_line + [word])
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        test_width = bbox[2] - bbox[0]
+        
+        if test_width <= max_width:
+            current_line.append(word)
+        else:
+            # If current line has words, finish it and start new line
+            if current_line:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+            else:
+                # Single word is too long, add it anyway to avoid infinite loop
+                lines.append(word)
+    
+    # Add remaining words as final line
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    return lines
+
 def reconnect_bluetooth_device(device_name):
     """
     Attempts to reconnect the Bluetooth device using PowerShell (best effort).
@@ -113,96 +145,159 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj, config, printer_config):
+def generate_label_image(date_str, date_obj, config, printer_config, message=None):
     # Create image based on printer-specific settings
     width_px = int(printer_config['label_width_in'] * printer_config['dpi'])
     height_px = int(printer_config['label_height_in'] * printer_config['dpi'])
     image = Image.new('L', (width_px, height_px), 255)
     draw = ImageDraw.Draw(image)
 
-    # Get month-specific size ratio
+    # Get month-specific size ratio for dates (may be adjusted if message present)
     month_name = date_obj.strftime("%B")
-    text_height_ratio = config.get('month_size_ratios', {}).get(month_name, config.get('default_text_height_ratio', 0.15))
+    base_text_height_ratio = config.get('month_size_ratios', {}).get(month_name, config.get('default_text_height_ratio', 0.15))
     
-    # Calculate maximum dimensions
-    max_text_height = int(height_px * text_height_ratio)
+    # Adjust date size based on whether message is present
+    if message:
+        # Reduce date font size slightly when message is present
+        date_text_height_ratio = base_text_height_ratio * 0.85
+    else:
+        date_text_height_ratio = base_text_height_ratio
+    
+    # Calculate maximum dimensions for date text
+    max_date_height = int(height_px * date_text_height_ratio)
     max_text_width = int(width_px * config.get('max_text_width_ratio', 0.85))
     
-    # Find the right font size
+    # Find the right font size for date
     min_font = config.get('min_font_size', 10)
     max_font = config.get('max_font_size', 500)
-    font_size = min_font
+    date_font_size = min_font
     for size in range(min_font, max_font):
         font = ImageFont.truetype(config['font_path'], size)
-        # Use textbbox to get accurate text dimensions
         bbox = draw.textbbox((0, 0), date_str, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
         
-        if text_height > max_text_height or text_width > max_text_width:
-            font_size = size - 1
+        if text_height > max_date_height or text_width > max_text_width:
+            date_font_size = size - 1
             break
-        font_size = size
+        date_font_size = size
     
-    # Use the determined font size
-    font = ImageFont.truetype(config['font_path'], font_size)
+    # Use the determined font size for dates
+    date_font = ImageFont.truetype(config['font_path'], date_font_size)
     
-    # Get text dimensions using textbbox
-    # textbbox returns absolute coordinates of the bounding box
-    bbox = draw.textbbox((0, 0), date_str, font=font)
+    # Get date text dimensions
+    date_bbox = draw.textbbox((0, 0), date_str, font=date_font)
+    date_text_width = date_bbox[2] - date_bbox[0]
+    date_text_height = date_bbox[3] - date_bbox[1]
     
-    # Calculate actual text width and height
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
+    # Position date at bottom
+    date_x = (width_px - date_text_width) // 2
+    date_y = height_px - printer_config['bottom_margin'] - date_text_height
+    date_draw_x = date_x - date_bbox[0]
+    date_draw_y = date_y - date_bbox[1]
     
-    # For horizontal centering, we need to center the text within the label
-    # Since bbox[0] might be negative (for characters extending left), we account for it
-    x = (width_px - text_width) // 2
-    
-    # For vertical positioning at bottom with margin
-    # We want the bottom of the text to be bottom_margin pixels from the bottom
-    y = height_px - printer_config['bottom_margin'] - text_height
-    
-    # Calculate the actual drawing position
-    draw_x = x - bbox[0]
-    draw_y = y - bbox[1]
-    
-    # Add safety checks to prevent cutoff
-    if draw_x < 0:
-        print(f"WARNING: Text would be cut off on left! Adjusting from {draw_x} to 0")
-        draw_x = 0
-    
-    # Check right edge
-    right_edge = draw_x + text_width
+    # Safety checks for date positioning
+    if date_draw_x < 0:
+        date_draw_x = 0
+    right_edge = date_draw_x + date_text_width
     if right_edge > width_px:
-        print(f"WARNING: Text would be cut off on right! Right edge: {right_edge}, limit: {width_px}")
-        print(f"Adjusting draw_x from {draw_x} to {width_px - text_width}")
-        draw_x = width_px - text_width
+        date_draw_x = width_px - date_text_width
     
-    # Draw the main text at the calculated position
-    draw.text((draw_x, draw_y), date_str, font=font, fill=0)
+    # Draw the main date at the bottom
+    draw.text((date_draw_x, date_draw_y), date_str, font=date_font, fill=0)
+    
+    # Handle message in center if provided
+    if message:
+        # Calculate available space for message (between top margin and date)
+        top_margin = 15
+        available_height = date_y - top_margin - 10  # 10px buffer from date
+        max_message_width = int(width_px * 0.9)  # 90% of width
+        
+        # Find appropriate font size for message (start larger since we'll wrap)
+        message_font_size = min_font
+        for size in range(min_font, max_font):
+            # Try with bold font (use regular font path but we'll make it bold later)
+            font = ImageFont.truetype(config['font_path'], size)
+            
+            # Get wrapped lines for this font size
+            wrapped_lines = wrap_text_to_fit(message, font, draw, max_message_width)
+            
+            # Calculate total height needed for all lines
+            line_heights = []
+            line_widths = []
+            for line in wrapped_lines:
+                bbox = draw.textbbox((0, 0), line, font=font)
+                line_heights.append(bbox[3] - bbox[1])
+                line_widths.append(bbox[2] - bbox[0])
+            
+            # Calculate total text block height (with line spacing)
+            line_spacing = 2  # pixels between lines
+            total_height = sum(line_heights) + (len(wrapped_lines) - 1) * line_spacing
+            
+            if total_height <= available_height:
+                message_font_size = size
+                final_lines = wrapped_lines
+                final_line_heights = line_heights
+                final_line_widths = line_widths
+                final_total_height = total_height
+            else:
+                # Previous size was the best fit
+                break
+        
+        # Use the determined font size for message
+        message_font = ImageFont.truetype(config['font_path'], message_font_size)
+        
+        # Calculate vertical centering for the entire text block
+        block_start_y = top_margin + (available_height - final_total_height) // 2
+        
+        # Draw each line, centered horizontally
+        current_y = block_start_y
+        for i, line in enumerate(final_lines):
+            # Get precise bbox for this line
+            line_bbox = draw.textbbox((0, 0), line, font=message_font)
+            line_width = final_line_widths[i]
+            line_height = final_line_heights[i]
+            
+            # Center this line horizontally
+            line_x = (width_px - line_width) // 2
+            line_draw_x = line_x - line_bbox[0]
+            line_draw_y = current_y - line_bbox[1]
+            
+            # Draw the line in bold (simulate bold by drawing multiple times with slight offsets)
+            for offset_x in [-1, 0, 1]:
+                for offset_y in [-1, 0, 1]:
+                    if offset_x == 0 and offset_y == 0:
+                        continue
+                    draw.text((line_draw_x + offset_x, line_draw_y + offset_y), line, font=message_font, fill=0)
+            
+            # Draw the main text
+            draw.text((line_draw_x, line_draw_y), line, font=message_font, fill=0)
+            
+            # Move to next line position
+            current_y += line_height + line_spacing
+        
+        # Store for debug output
+        msg_draw_x = line_x  # Use last line's x for debug
+        msg_draw_y = block_start_y  # Use block start for debug
     
     # Draw the upside down date at the top
-    # Create a temporary image for the rotated text
-    temp_img = Image.new('L', (text_width + 40, text_height + 40), 255)  # Add more padding
+    temp_img = Image.new('L', (date_text_width + 40, date_text_height + 40), 255)
     temp_draw = ImageDraw.Draw(temp_img)
     
-    # Draw text on temporary image with padding
-    temp_draw.text((20 - bbox[0], 20 - bbox[1]), date_str, font=font, fill=0)
+    # Draw date text on temporary image with padding
+    temp_draw.text((20 - date_bbox[0], 20 - date_bbox[1]), date_str, font=date_font, fill=0)
     
     # Rotate the temporary image 180 degrees
     rotated_temp = temp_img.rotate(180, expand=True)
     
     # Calculate position for the rotated text at the top
-    top_margin = 15  # 15px from top (same as bottom margin)
-    rotated_x = (width_px - rotated_temp.width) // 2  # Center horizontally
+    top_margin = 15
+    rotated_x = (width_px - rotated_temp.width) // 2
     rotated_y = top_margin
     
-    # Create a mask from the rotated image (black where text should go, white elsewhere)
+    # Create mask and paste rotated date
     mask = rotated_temp.point(lambda x: 255 if x < 128 else 0, mode='1')
-    
-    # Paste black pixels where the mask indicates text should be
-    black_overlay = Image.new('L', rotated_temp.size, 0)  # Solid black image
+    black_overlay = Image.new('L', rotated_temp.size, 0)
     image.paste(black_overlay, (rotated_x, rotated_y), mask)
     
     # Draw 3px black border 3px from the edge
@@ -229,14 +324,15 @@ def generate_label_image(date_str, date_obj, config, printer_config):
     # Debug info
     print(f"\n=== Debug Info ===")
     print(f"Date string: '{date_str}'")
-    print(f"Font size: {font_size}, Text dimensions: {text_width}x{text_height}")
-    print(f"BBox: left={bbox[0]}, top={bbox[1]}, right={bbox[2]}, bottom={bbox[3]}")
-    print(f"Logical center position: x={x}, y={y}")
-    print(f"Final draw position: ({draw_x}, {draw_y})")
+    print(f"Date font size: {date_font_size}, Text dimensions: {date_text_width}x{date_text_height}")
+    print(f"Date final position: ({date_draw_x}, {date_draw_y})")
+    if message:
+        print(f"Message: '{message}' (length: {len(message)})")
+        print(f"Message font size: {message_font_size}")
+        print(f"Message wrapped into {len(final_lines)} lines: {final_lines}")
+        print(f"Message block position: ({msg_draw_x}, {msg_draw_y})")
+        print(f"Message block total height: {final_total_height}px")
     print(f"Label dimensions: {width_px}x{height_px}")
-    print(f"Text will occupy: x={draw_x} to x={draw_x + text_width} (image width: {width_px})")
-    if draw_x + text_width > width_px:
-        print(f"⚠️  TEXT EXTENDS BEYOND IMAGE! Overflow: {draw_x + text_width - width_px}px")
     print(f"Bottom margin: {printer_config['bottom_margin']}px")
     
     image.save("label_preview.png")  # Optional preview
@@ -381,6 +477,8 @@ if __name__ == "__main__":
                         help='Number of labels to print (default: 1)')
     parser.add_argument('-d', '--date', type=str, 
                         help='Specific date to print (format: YYYY-MM-DD, default: today)')
+    parser.add_argument('-m', '--message', type=str, 
+                        help='Custom message to print in center of label (max 18 chars)')
     args = parser.parse_args()
     
     # Load configuration
@@ -450,7 +548,7 @@ if __name__ == "__main__":
         date_obj = datetime.now()
         date_str = date_obj.strftime(config['date_format'])
     
-    label_img = generate_label_image(date_str, date_obj, config, printer_config)
+    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message)
     print(f"Label image generated for: {date_str}")
 
     # Step 4: Print the requested number of labels
