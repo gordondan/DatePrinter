@@ -145,84 +145,100 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj, config, printer_config, message=None):
+def generate_label_image(date_str, date_obj, config, printer_config, message=None, message_only=False):
     # Create image based on printer-specific settings
     width_px = int(printer_config['label_width_in'] * printer_config['dpi'])
     height_px = int(printer_config['label_height_in'] * printer_config['dpi'])
     image = Image.new('L', (width_px, height_px), 255)
     draw = ImageDraw.Draw(image)
 
-    # Get month-specific size ratio for dates (may be adjusted if message present)
-    month_name = date_obj.strftime("%B")
-    base_text_height_ratio = config.get('month_size_ratios', {}).get(month_name, config.get('default_text_height_ratio', 0.15))
+    # Initialize variables that might be needed for message positioning
+    date_y = height_px - printer_config['bottom_margin']
+    date_text_height = 0
+    date_font_size = config.get('min_font_size', 10)
     
-    # Adjust date size based on whether message is present
-    if message:
-        # Reduce date font size slightly when message is present
-        date_text_height_ratio = base_text_height_ratio * 0.85
-    else:
-        date_text_height_ratio = base_text_height_ratio
+    # Only draw dates if not message-only mode
+    if not message_only:
+        # Get month-specific size ratio for dates (may be adjusted if message present)
+        month_name = date_obj.strftime("%B")
+        base_text_height_ratio = config.get('month_size_ratios', {}).get(month_name, config.get('default_text_height_ratio', 0.15))
     
-    # Calculate maximum dimensions for date text
-    max_date_height = int(height_px * date_text_height_ratio)
-    max_text_width = int(width_px * config.get('max_text_width_ratio', 0.85))
-    
-    # Find the right font size for date
-    min_font = config.get('min_font_size', 10)
-    max_font = config.get('max_font_size', 500)
-    date_font_size = min_font
-    for size in range(min_font, max_font):
-        font = ImageFont.truetype(config['font_path'], size)
-        bbox = draw.textbbox((0, 0), date_str, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
+        # Adjust date size based on whether message is present
+        if message:
+            # Reduce date font size slightly when message is present
+            date_text_height_ratio = base_text_height_ratio * 0.85
+        else:
+            date_text_height_ratio = base_text_height_ratio
         
-        if text_height > max_date_height or text_width > max_text_width:
-            date_font_size = size - 1
-            break
-        date_font_size = size
-    
-    # Use the determined font size for dates
-    date_font = ImageFont.truetype(config['font_path'], date_font_size)
-    
-    # Get date text dimensions
-    date_bbox = draw.textbbox((0, 0), date_str, font=date_font)
-    date_text_width = date_bbox[2] - date_bbox[0]
-    date_text_height = date_bbox[3] - date_bbox[1]
-    
-    # Position date at bottom
-    date_x = (width_px - date_text_width) // 2
-    date_y = height_px - printer_config['bottom_margin'] - date_text_height
-    date_draw_x = date_x - date_bbox[0]
-    date_draw_y = date_y - date_bbox[1]
-    
-    # Safety checks for date positioning
-    if date_draw_x < 0:
-        date_draw_x = 0
-    right_edge = date_draw_x + date_text_width
-    if right_edge > width_px:
-        date_draw_x = width_px - date_text_width
-    
-    # Draw the main date at the bottom
-    draw.text((date_draw_x, date_draw_y), date_str, font=date_font, fill=0)
+        # Calculate maximum dimensions for date text
+        max_date_height = int(height_px * date_text_height_ratio)
+        max_text_width = int(width_px * config.get('max_text_width_ratio', 0.85))
+        
+        # Find the right font size for date
+        min_font = config.get('min_font_size', 10)
+        max_font = config.get('max_font_size', 500)
+        date_font_size = min_font
+        for size in range(min_font, max_font):
+            font = ImageFont.truetype(config['font_path'], size)
+            bbox = draw.textbbox((0, 0), date_str, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            if text_height > max_date_height or text_width > max_text_width:
+                date_font_size = size - 1
+                break
+            date_font_size = size
+        
+        # Use the determined font size for dates
+        date_font = ImageFont.truetype(config['font_path'], date_font_size)
+        
+        # Get date text dimensions
+        date_bbox = draw.textbbox((0, 0), date_str, font=date_font)
+        date_text_width = date_bbox[2] - date_bbox[0]
+        date_text_height = date_bbox[3] - date_bbox[1]
+        
+        # Position date at bottom
+        date_x = (width_px - date_text_width) // 2
+        date_y = height_px - printer_config['bottom_margin'] - date_text_height
+        date_draw_x = date_x - date_bbox[0]
+        date_draw_y = date_y - date_bbox[1]
+        
+        # Safety checks for date positioning
+        if date_draw_x < 0:
+            date_draw_x = 0
+        right_edge = date_draw_x + date_text_width
+        if right_edge > width_px:
+            date_draw_x = width_px - date_text_width
+        
+        # Draw the main date at the bottom
+        draw.text((date_draw_x, date_draw_y), date_str, font=date_font, fill=0)
     
     # Handle message in center if provided
     if message:
-        # Calculate available space for message (between rotated top date and bottom date)
-        top_margin = 15
+        # Calculate available space for message
+        if message_only:
+            # In message-only mode, use the entire label space with margins
+            top_margin = 15
+            space_start = top_margin
+            space_end = height_px - 15  # Bottom margin
+            available_height = space_end - space_start
+        else:
+            # With dates: space between rotated top date and bottom date
+            top_margin = 15
+            
+            # First, calculate where the rotated top date actually ends
+            # The rotated image dimensions need to be calculated
+            temp_img_height = date_text_height + 40  # Same padding as used in rotation
+            rotated_top_end = top_margin + temp_img_height
+            
+            # Available space is from after rotated top date to before bottom date (with buffers)
+            space_start = rotated_top_end + 5  # 5px buffer after rotated date
+            space_end = date_y - 5  # 5px buffer before bottom date
+            available_height = space_end - space_start
         
-        # First, calculate where the rotated top date actually ends
-        # The rotated image dimensions need to be calculated
-        temp_img_height = date_text_height + 40  # Same padding as used in rotation
-        rotated_top_end = top_margin + temp_img_height
-        
-        # Available space is from after rotated top date to before bottom date (with buffers)
-        space_start = rotated_top_end + 5  # 5px buffer after rotated date
-        space_end = date_y - 5  # 5px buffer before bottom date
-        available_height = space_end - space_start
         max_message_width = int(width_px * 0.9)  # 90% of width
         
-        print(f"DEBUG: rotated_top_end={rotated_top_end}, space_start={space_start}, space_end={space_end}, available_height={available_height}")
+        print(f"DEBUG: message_only={message_only}, space_start={space_start}, space_end={space_end}, available_height={available_height}")
         
         # Find appropriate font size for message - make it reasonable size
         max_message_font = min(max_font, int(date_font_size * 1.2))  # Allow up to 120% of date font size
@@ -314,25 +330,26 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
         msg_draw_x = (width_px - max(final_line_widths)) // 2 if final_line_widths else 0  # Center of widest line
         msg_draw_y = block_start_y  # Use block start for debug
     
-    # Draw the upside down date at the top
-    temp_img = Image.new('L', (date_text_width + 40, date_text_height + 40), 255)
-    temp_draw = ImageDraw.Draw(temp_img)
-    
-    # Draw date text on temporary image with padding
-    temp_draw.text((20 - date_bbox[0], 20 - date_bbox[1]), date_str, font=date_font, fill=0)
-    
-    # Rotate the temporary image 180 degrees
-    rotated_temp = temp_img.rotate(180, expand=True)
-    
-    # Calculate position for the rotated text at the top
-    top_margin = 15
-    rotated_x = (width_px - rotated_temp.width) // 2
-    rotated_y = top_margin
-    
-    # Create mask and paste rotated date
-    mask = rotated_temp.point(lambda x: 255 if x < 128 else 0, mode='1')
-    black_overlay = Image.new('L', rotated_temp.size, 0)
-    image.paste(black_overlay, (rotated_x, rotated_y), mask)
+    # Draw the upside down date at the top (only if not message-only mode)
+    if not message_only:
+        temp_img = Image.new('L', (date_text_width + 40, date_text_height + 40), 255)
+        temp_draw = ImageDraw.Draw(temp_img)
+        
+        # Draw date text on temporary image with padding
+        temp_draw.text((20 - date_bbox[0], 20 - date_bbox[1]), date_str, font=date_font, fill=0)
+        
+        # Rotate the temporary image 180 degrees
+        rotated_temp = temp_img.rotate(180, expand=True)
+        
+        # Calculate position for the rotated text at the top
+        top_margin = 15
+        rotated_x = (width_px - rotated_temp.width) // 2
+        rotated_y = top_margin
+        
+        # Create mask and paste rotated date
+        mask = rotated_temp.point(lambda x: 255 if x < 128 else 0, mode='1')
+        black_overlay = Image.new('L', rotated_temp.size, 0)
+        image.paste(black_overlay, (rotated_x, rotated_y), mask)
     
     # Draw 3px black border 3px from the edge
     border_margin = 3
@@ -357,6 +374,7 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     
     # Debug info
     print(f"\n=== Debug Info ===")
+    print(f"Message-only mode: {message_only}")
     print(f"Date string: '{date_str}'")
     print(f"Date font size: {date_font_size}, Text dimensions: {date_text_width}x{date_text_height}")
     print(f"Date final position: ({date_draw_x}, {date_draw_y})")
@@ -512,7 +530,9 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--date', type=str, 
                         help='Specific date to print (format: YYYY-MM-DD, default: today)')
     parser.add_argument('-m', '--message', type=str, 
-                        help='Custom message to print in center of label (max 18 chars)')
+                        help='Custom message to print in center of label')
+    parser.add_argument('--message-only', action='store_true',
+                        help='When using -m/--message, omit the dates and show only the message')
     args = parser.parse_args()
     
     # Load configuration
@@ -582,7 +602,7 @@ if __name__ == "__main__":
         date_obj = datetime.now()
         date_str = date_obj.strftime(config['date_format'])
     
-    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message)
+    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.message_only)
     print(f"Label image generated for: {date_str}")
 
     # Step 4: Print the requested number of labels
