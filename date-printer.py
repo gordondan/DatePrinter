@@ -155,7 +155,9 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     # Initialize variables that might be needed for message positioning
     date_y = height_px - printer_config['bottom_margin']
     date_text_height = 0
-    date_font_size = config.get('min_font_size', 10)
+    min_font = config.get('min_font_size', 10)
+    max_font = config.get('max_font_size', 500)
+    date_font_size = min_font
     
     # Only draw dates if not message-only mode
     if not message_only:
@@ -175,8 +177,6 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
         max_text_width = int(width_px * config.get('max_text_width_ratio', 0.85))
         
         # Find the right font size for date
-        min_font = config.get('min_font_size', 10)
-        max_font = config.get('max_font_size', 500)
         date_font_size = min_font
         for size in range(min_font, max_font):
             font = ImageFont.truetype(config['font_path'], size)
@@ -375,9 +375,10 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     # Debug info
     print(f"\n=== Debug Info ===")
     print(f"Message-only mode: {message_only}")
-    print(f"Date string: '{date_str}'")
-    print(f"Date font size: {date_font_size}, Text dimensions: {date_text_width}x{date_text_height}")
-    print(f"Date final position: ({date_draw_x}, {date_draw_y})")
+    if not message_only:
+        print(f"Date string: '{date_str}'")
+        print(f"Date font size: {date_font_size}, Text dimensions: {date_text_width}x{date_text_height}")
+        print(f"Date final position: ({date_draw_x}, {date_draw_y})")
     if message:
         print(f"Message: '{message}' (length: {len(message)})")
         print(f"Message font size: {message_font_size}")
