@@ -1,0 +1,17 @@
+[22:13:06] === Label Printer Log Session Started ===
+[22:13:06] Timestamp: 2025-08-09 22:13:06
+[22:13:06] Log directory: logs\2025\August\August 09\runs\10-13-06 PM
+[22:13:06] 
+[22:13:06] Command: label-printer.py -i test_image_small.png -p
+[22:13:06] Configuration loaded successfully
+[22:13:06] Using default printer: Munbyn RW402B
+[22:13:06] --- Label Generation ---
+[22:13:06] Date: August 09, 2025
+[22:13:06] Message-only mode: False
+[22:13:06] Label count: 1
+[22:13:06] Loaded image: 200x100px from test_image_small.png
+[22:13:06] Image fits within printable area - no cropping needed
+[22:13:06] SUCCESS: Label image generated
+[22:13:06]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:13:06] Preview saved: logs\2025\August\August 09\runs\10-13-06 PM\label_preview.png
+[22:13:06] Preview mode: No printing requested

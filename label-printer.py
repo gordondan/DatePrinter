@@ -515,6 +515,65 @@ def draw_main_message(image, draw, message, config, layout, width_px):
                          space_start, space_end, width_px, 
                          rotation=0, min_font=10, max_font=500, extra_padding=0, layout=layout)
 
+def load_and_process_image(image_path, printable_width, printable_height, logger):
+    """Load PNG image and crop to fit printable area if necessary."""
+    try:
+        # Load the image
+        user_image = Image.open(image_path)
+        
+        # Convert to grayscale to match label format
+        if user_image.mode != 'L':
+            user_image = user_image.convert('L')
+            logger.log(f"Converted image from {Image.open(image_path).mode} to grayscale")
+        
+        original_width, original_height = user_image.size
+        logger.log(f"Loaded image: {original_width}x{original_height}px from {image_path}")
+        
+        # Check if image needs cropping
+        if original_width > printable_width or original_height > printable_height:
+            # Crop from top-left corner to fit printable area
+            cropped_image = user_image.crop((0, 0, min(original_width, printable_width), 
+                                           min(original_height, printable_height)))
+            
+            # Log warning about cropping
+            logger.log(f"WARNING: Image {original_width}x{original_height}px is larger than printable area {printable_width}x{printable_height}px")
+            logger.log(f"Image cropped to {cropped_image.size[0]}x{cropped_image.size[1]}px from top-left corner")
+            print(f"WARNING: Image cropped from {original_width}x{original_height}px to {cropped_image.size[0]}x{cropped_image.size[1]}px")
+            
+            return cropped_image
+        else:
+            logger.log(f"Image fits within printable area - no cropping needed")
+            return user_image
+            
+    except FileNotFoundError:
+        logger.log(f"ERROR: Image file not found: {image_path}")
+        print(f"ERROR: Image file not found: {image_path}")
+        return None
+    except Exception as e:
+        logger.log(f"ERROR: Failed to load image {image_path}: {str(e)}")
+        print(f"ERROR: Failed to load image: {str(e)}")
+        return None
+
+def paste_image_on_label(base_image, user_image, layout):
+    """Paste user image onto label in the appropriate location."""
+    if user_image is None:
+        return
+    
+    # Calculate position to center the image in the printable area
+    printable_start_x = layout.get('printable_start_x', 10)
+    printable_start_y = layout.get('printable_start_y', 10)
+    printable_width = layout.get('printable_width', base_image.width - 20)
+    printable_height = layout.get('printable_height', base_image.height - 20)
+    
+    image_width, image_height = user_image.size
+    
+    # Center the image in the printable area
+    paste_x = printable_start_x + (printable_width - image_width) // 2
+    paste_y = printable_start_y + (printable_height - image_height) // 2
+    
+    # Paste the image onto the base label
+    base_image.paste(user_image, (paste_x, paste_y))
+
 def draw_border_message(image, draw, border_message, config, layout, width_px):
     """Draw border message in top and bottom zones with proper 180° rotation for bottom."""
     # Calculate optimal padding for border text (~4px for good balance)
@@ -550,7 +609,7 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, message_only=False):
+def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, message_only=False, image_path=None, logger=None):
     """Generate a label image with dates and/or message."""
     # Create image based on printer-specific settings
     width_px = int(printer_config['label_width_in'] * printer_config['dpi'])
@@ -571,13 +630,20 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     layout = calculate_layout_spaces(width_px, height_px, printer_config, config, date_str, date_obj, 
                                     show_dates, show_main_message, show_border_message, draw, min_font, max_font)
     
-    print(f"DEBUG: Layout calculated - dates: {show_dates}, main_msg: {show_main_message}, border_msg: {show_border_message}")
-    print(f"DEBUG: Printable area: {layout.get('printable_width', 'N/A')}x{layout.get('printable_height', 'N/A')} starting at y={layout.get('printable_start_y', 'N/A')}")
-    if show_main_message and 'main_message_start' in layout:
-        zone_height = layout['main_message_end'] - layout['main_message_start']
-        print(f"DEBUG: Middle zone: y={layout['main_message_start']}-{layout['main_message_end']} (height={zone_height}px)")
+    # Layout calculation complete
     
-    # Draw each type of content in its allocated space
+    # Load and process user image if provided
+    user_image = None
+    if image_path:
+        printable_width = layout.get('printable_width', width_px - 20)
+        printable_height = layout.get('printable_height', height_px - 20)
+        user_image = load_and_process_image(image_path, printable_width, printable_height, logger)
+        
+        # Paste the image onto the label (behind text content)
+        if user_image:
+            paste_image_on_label(image, user_image, layout)
+    
+    # Draw each type of content in its allocated space (over the image)
     if show_dates:
         draw_dates(image, draw, date_str, config, layout, show_border_message)
     
@@ -750,6 +816,8 @@ if __name__ == "__main__":
                         help='Custom message to print in center of label')
     parser.add_argument('-b', '--border-message', type=str,
                         help='Custom border message - follows date scaling rules when --message is present')
+    parser.add_argument('-i', '--image', type=str,
+                        help='Path to PNG image file to include on label (will be cropped to fit printable area if oversized)')
     parser.add_argument('-o', '--message-only', action='store_true',
                         help='When using -m/--message, omit the dates and show only the message')
     parser.add_argument('-p', '--preview-only', action='store_true',
@@ -832,7 +900,7 @@ if __name__ == "__main__":
     # Log label generation details
     logger.log_label_generation(date_str, args.message, args.border_message, args.message_only, args.count)
     
-    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.border_message, args.message_only)
+    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.border_message, args.message_only, args.image, logger)
     print(f"Label image generated for: {date_str}")
     logger.log_success("Label image generated", f"Date: {date_str}, Dimensions: {label_img.size}")
     

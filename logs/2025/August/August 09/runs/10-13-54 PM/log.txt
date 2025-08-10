@@ -1,0 +1,35 @@
+[22:13:54] === Label Printer Log Session Started ===
+[22:13:54] Timestamp: 2025-08-09 22:13:54
+[22:13:54] Log directory: logs\2025\August\August 09\runs\10-13-54 PM
+[22:13:54] 
+[22:13:54] Command: label-printer.py -i test_image_small.png -p
+[22:13:54] Configuration loaded successfully
+[22:13:54] Using default printer: Munbyn RW402B
+[22:13:54] --- Label Generation ---
+[22:13:54] Date: August 09, 2025
+[22:13:54] Message-only mode: False
+[22:13:54] Label count: 1
+[22:13:54] Loaded image: 200x100px from test_image_small.png
+[22:13:54] Image fits within printable area - no cropping needed
+[22:13:54] SUCCESS: Label image generated
+[22:13:54]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:13:54] Preview saved: logs\2025\August\August 09\runs\10-13-54 PM\label_preview.png
+[22:13:54] Preview mode: No printing requested
+[22:13:54] === Label Printer Log Session Started ===
+[22:13:54] Timestamp: 2025-08-09 22:13:54
+[22:13:54] Log directory: logs\2025\August\August 09\runs\10-13-54 PM
+[22:13:54] 
+[22:13:54] Command: label-printer.py -i test_image_large.png -o -p
+[22:13:54] Configuration loaded successfully
+[22:13:54] Using default printer: Munbyn RW402B
+[22:13:54] --- Label Generation ---
+[22:13:54] Date: August 09, 2025
+[22:13:54] Message-only mode: True
+[22:13:54] Label count: 1
+[22:13:54] Loaded image: 600x400px from test_image_large.png
+[22:13:54] WARNING: Image 600x400px is larger than printable area 436x233px
+[22:13:54] Image cropped to 436x233px from top-left corner
+[22:13:55] SUCCESS: Label image generated
+[22:13:55]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:13:55] Preview saved: logs\2025\August\August 09\runs\10-13-54 PM\label_preview.png
+[22:13:55] Preview mode: No printing requested
