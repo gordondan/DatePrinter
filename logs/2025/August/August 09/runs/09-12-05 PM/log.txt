@@ -1,0 +1,24 @@
+[21:12:05] === Label Printer Log Session Started ===
+[21:12:05] Timestamp: 2025-08-09 21:12:05
+[21:12:05] Log directory: logs\2025\August\August 09\runs\09-12-05 PM
+[21:12:05] 
+[21:12:05] Command: label-printer.py --border-message Wifi Switch -o -c 2
+[21:12:05] Configuration loaded successfully
+[21:12:05] Using default printer: Munbyn RW402B
+[21:12:05] --- Label Generation ---
+[21:12:05] Date: August 09, 2025
+[21:12:05] Border message: 'Wifi Switch' (length: 11)
+[21:12:05] Message-only mode: True
+[21:12:05] Label count: 2
+[21:12:05] SUCCESS: Label image generated
+[21:12:05]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:12:05] Preview saved: logs\2025\August\August 09\runs\09-12-05 PM\label_preview.png
+[21:12:05] Starting print job: 2 label(s) to Munbyn RW402B
+[21:12:05] Printing label 1 of 2
+[21:12:05] Print attempt 1 of 6
+[21:12:06] SUCCESS: Label 1 printed successfully
+[21:12:07] Printing label 2 of 2
+[21:12:07] Print attempt 1 of 6
+[21:12:07] SUCCESS: Label 2 printed successfully
+[21:12:07] SUCCESS: Print job completed
+[21:12:07]   Details: 2 label(s) printed successfully

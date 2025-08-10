@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Label Printer Web App</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖨️</text></svg>">
+    <meta name="description" content="Modern web interface for the Label Printer system">
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <h1><span class="icon">🖨️</span> Label Printer</h1>
+            <nav class="main-nav" role="navigation" aria-label="Main navigation">
+                <ul>
+                    <li><a href="#quick-print" onclick="showSection('quick-print')" id="nav-quick">Quick Print</a></li>
+                    <li><a href="#templates" onclick="showSection('templates')" id="nav-templates">Templates</a></li>
+                    <li><a href="#logs" onclick="showSection('logs')" id="nav-logs">Logs</a></li>
+                    <li><a href="#settings" onclick="showSection('settings')" id="nav-settings">Settings</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Loading State -->
+            <div id="loading-state" class="loading-state hidden" aria-live="polite">
+                <div class="loading-spinner"></div>
+                <p>Processing your label...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="error-state hidden" role="alert" aria-live="assertive">
+                <div class="error-icon">⚠️</div>
+                <h2>Error Occurred</h2>
+                <p id="error-message">An error occurred while processing your request.</p>
+                <button id="error-retry-btn" class="btn btn-primary">Try Again</button>
+            </div>
+
+            <!-- Success State -->
+            <div id="success-state" class="success-state hidden" role="alert" aria-live="polite">
+                <div class="success-icon">✅</div>
+                <h2>Label Created Successfully!</h2>
+                <p id="success-message">Your label has been generated.</p>
+                <div id="preview-container" class="preview-container hidden">
+                    <h3>Label Preview:</h3>
+                    <img id="label-preview" src="" alt="Label Preview" class="label-preview-image">
+                </div>
+            </div>
+
+            <!-- Quick Print Section -->
+            <section id="quick-print-section" class="content-section">
+                <div class="section-header">
+                    <h2><span class="icon">⚡</span> Quick Print</h2>
+                    <p>Create and print labels quickly with custom messages</p>
+                </div>
+
+                <div class="card">
+                    <form id="quick-print-form" class="print-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="message">Main Message:</label>
+                                <input type="text" id="message" name="message" placeholder="Enter your message..." maxlength="100">
+                                <small class="form-help">This will be the main text on your label</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="border-message">Border Message (Optional):</label>
+                                <input type="text" id="border-message" name="border_message" placeholder="Optional border text..." maxlength="50">
+                                <small class="form-help">Additional text that appears in the border area</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="date">Custom Date (Optional):</label>
+                                <input type="date" id="date" name="date">
+                                <small class="form-help">Leave blank to use today's date</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="count">Number of Labels:</label>
+                                <input type="number" id="count" name="count" min="1" max="99" value="1">
+                                <small class="form-help">How many copies to print</small>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="message-only" name="message_only">
+                                    <span class="checkmark"></span>
+                                    Message Only (no dates)
+                                </label>
+                                <small class="form-help">Show only the message without date information</small>
+                            </div>
+
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="preview-only" name="preview_only" checked>
+                                    <span class="checkmark"></span>
+                                    Preview Only (don't print)
+                                </label>
+                                <small class="form-help">Generate preview without sending to printer</small>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" id="preview-btn" class="btn btn-secondary">
+                                <span class="icon">👁️</span> Preview Label
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <span class="icon">🖨️</span> Create Label
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Quick Examples -->
+                <div class="examples-section">
+                    <h3>Quick Examples:</h3>
+                    <div class="examples-grid">
+                        <button class="example-btn" onclick="setExample('Birthday', '', true)">
+                            🎂 Birthday Label
+                        </button>
+                        <button class="example-btn" onclick="setExample('Kitchen', '', true)">
+                            🍳 Kitchen Label
+                        </button>
+                        <button class="example-btn" onclick="setExample('Meeting', 'Important', false)">
+                            📅 Meeting Reminder
+                        </button>
+                        <button class="example-btn" onclick="setExample('Emergency Contact', '911', true)">
+                            🚨 Emergency Info
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates Section -->
+            <section id="templates-section" class="content-section hidden">
+                <div class="section-header">
+                    <h2><span class="icon">📋</span> Templates</h2>
+                    <p>Use pre-configured templates for common label types</p>
+                </div>
+
+                <div id="templates-loading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading templates...</p>
+                </div>
+
+                <div id="templates-content" class="templates-content hidden">
+                    <!-- Templates will be loaded here dynamically -->
+                </div>
+            </section>
+
+            <!-- Logs Section -->
+            <section id="logs-section" class="content-section hidden">
+                <div class="section-header">
+                    <h2><span class="icon">📜</span> Recent Activity</h2>
+                    <p>View recent label printing activity and logs</p>
+                </div>
+
+                <div class="card">
+                    <div class="logs-controls">
+                        <button id="refresh-logs" class="btn btn-secondary">
+                            <span class="icon">🔄</span> Refresh Logs
+                        </button>
+                    </div>
+                    <div id="logs-content" class="logs-content">
+                        <div class="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>Loading logs...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings-section" class="content-section hidden">
+                <div class="section-header">
+                    <h2><span class="icon">⚙️</span> Settings</h2>
+                    <p>Configure printer settings and preferences</p>
+                </div>
+
+                <div class="card">
+                    <div id="config-loading" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Loading configuration...</p>
+                    </div>
+                    <div id="config-content" class="config-content hidden">
+                        <!-- Configuration will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Server Status</h3>
+                    <div id="server-status" class="status-info">
+                        <div class="status-item">
+                            <span class="status-label">Server:</span>
+                            <span id="server-status-text" class="status-value">Checking...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Last Updated:</span>
+                            <span id="last-updated" class="status-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2025 Label Printer Web App. Modern interface for efficient label printing.</p>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

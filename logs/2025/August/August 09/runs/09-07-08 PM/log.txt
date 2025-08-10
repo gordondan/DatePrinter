@@ -1,0 +1,20 @@
+[21:07:08] === Label Printer Log Session Started ===
+[21:07:08] Timestamp: 2025-08-09 21:07:08
+[21:07:08] Log directory: logs\2025\August\August 09\runs\09-07-08 PM
+[21:07:08] 
+[21:07:08] Command: label-printer.py --border-message Chicken Coop Door Relays -o -b And Rasp Pi Housing
+[21:07:08] Configuration loaded successfully
+[21:07:08] Using default printer: Munbyn RW402B
+[21:07:08] --- Label Generation ---
+[21:07:08] Date: August 09, 2025
+[21:07:08] Border message: 'And Rasp Pi Housing' (length: 19)
+[21:07:08] Message-only mode: True
+[21:07:08] Label count: 1
+[21:07:08] SUCCESS: Label image generated
+[21:07:08]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:07:08] Preview saved: logs\2025\August\August 09\runs\09-07-08 PM\label_preview.png
+[21:07:08] Starting print job: 1 label(s) to Munbyn RW402B
+[21:07:08] Print attempt 1 of 6
+[21:07:09] SUCCESS: Label 1 printed successfully
+[21:07:09] SUCCESS: Print job completed
+[21:07:09]   Details: 1 label(s) printed successfully

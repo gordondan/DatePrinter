@@ -1,0 +1,16 @@
+[21:06:38] === Label Printer Log Session Started ===
+[21:06:38] Timestamp: 2025-08-09 21:06:38
+[21:06:38] Log directory: logs\2025\August\August 09\runs\09-06-38 PM
+[21:06:38] 
+[21:06:38] Command: label-printer.py -b Only Border -p
+[21:06:38] Configuration loaded successfully
+[21:06:38] Using default printer: Munbyn RW402B
+[21:06:38] --- Label Generation ---
+[21:06:38] Date: August 09, 2025
+[21:06:38] Border message: 'Only Border' (length: 11)
+[21:06:38] Message-only mode: False
+[21:06:38] Label count: 1
+[21:06:38] SUCCESS: Label image generated
+[21:06:38]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:06:38] Preview saved: logs\2025\August\August 09\runs\09-06-38 PM\label_preview.png
+[21:06:38] Preview mode: No printing requested

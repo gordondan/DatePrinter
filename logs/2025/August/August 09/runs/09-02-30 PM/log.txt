@@ -1,0 +1,24 @@
+[21:02:30] === Label Printer Log Session Started ===
+[21:02:30] Timestamp: 2025-08-09 21:02:30
+[21:02:30] Log directory: logs\2025\August\August 09\runs\09-02-30 PM
+[21:02:30] 
+[21:02:30] Command: label-printer.py --border-message Caleb's Bottle -o -c2
+[21:02:30] Configuration loaded successfully
+[21:02:30] Using default printer: Munbyn RW402B
+[21:02:30] --- Label Generation ---
+[21:02:30] Date: August 09, 2025
+[21:02:30] Border message: 'Caleb's Bottle' (length: 14)
+[21:02:30] Message-only mode: True
+[21:02:30] Label count: 2
+[21:02:30] SUCCESS: Label image generated
+[21:02:30]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:02:30] Preview saved: logs\2025\August\August 09\runs\09-02-30 PM\label_preview.png
+[21:02:30] Starting print job: 2 label(s) to Munbyn RW402B
+[21:02:30] Printing label 1 of 2
+[21:02:30] Print attempt 1 of 6
+[21:02:30] SUCCESS: Label 1 printed successfully
+[21:02:31] Printing label 2 of 2
+[21:02:31] Print attempt 1 of 6
+[21:02:32] SUCCESS: Label 2 printed successfully
+[21:02:32] SUCCESS: Print job completed
+[21:02:32]   Details: 2 label(s) printed successfully

@@ -45,7 +45,11 @@ class LabelGenerator:
         font_path = settings.get('font_path', self.config['font_path'])
         
         for size in range(min_font, max_font):
-            font = ImageFont.truetype(font_path, size)
+            # Test with 20% larger font size
+            test_size = int(size * 1.2)
+            test_size = min(test_size, max_font)
+            
+            font = ImageFont.truetype(font_path, test_size)
             bbox = draw.textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
@@ -54,6 +58,9 @@ class LabelGenerator:
                 font_size = size - 1
                 break
             font_size = size
+        
+        # Apply 20% font size increase to the final optimal size
+        font_size = int(font_size * 1.2)
         
         # Use the determined font size
         font = ImageFont.truetype(font_path, font_size)

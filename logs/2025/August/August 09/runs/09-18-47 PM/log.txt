@@ -1,0 +1,24 @@
+[21:18:47] === Label Printer Log Session Started ===
+[21:18:47] Timestamp: 2025-08-09 21:18:47
+[21:18:47] Log directory: logs\2025\August\August 09\runs\09-18-47 PM
+[21:18:47] 
+[21:18:47] Command: label-printer.py --border-message Misc 3D printer Parts -o -c 2
+[21:18:47] Configuration loaded successfully
+[21:18:47] Using default printer: Munbyn RW402B
+[21:18:47] --- Label Generation ---
+[21:18:47] Date: August 09, 2025
+[21:18:47] Border message: 'Misc 3D printer Parts' (length: 21)
+[21:18:47] Message-only mode: True
+[21:18:47] Label count: 2
+[21:18:47] SUCCESS: Label image generated
+[21:18:47]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:18:47] Preview saved: logs\2025\August\August 09\runs\09-18-47 PM\label_preview.png
+[21:18:47] Starting print job: 2 label(s) to Munbyn RW402B
+[21:18:47] Printing label 1 of 2
+[21:18:47] Print attempt 1 of 6
+[21:18:47] SUCCESS: Label 1 printed successfully
+[21:18:48] Printing label 2 of 2
+[21:18:48] Print attempt 1 of 6
+[21:18:48] SUCCESS: Label 2 printed successfully
+[21:18:48] SUCCESS: Print job completed
+[21:18:48]   Details: 2 label(s) printed successfully

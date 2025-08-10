@@ -1,0 +1,55 @@
+Label Printer GUI Session Started
+Timestamp: Friday, August 08, 2025 at 03:48:51 PM
+============================================================
+
+[15:50:01] DEBUG: Template content: --message {{MESSAGE}} --border-message {{BORDER MESSAGE}}
+[15:50:01] DEBUG: Variable values: {'MESSAGE': 'Dump the trash [DATE]', 'BORDER MESSAGE': '[CURRENT-TIME]'}
+[15:50:01] Executing: python date-printer.py --message Dump the trash August 08, 2025 --border-message 03:48 PM -c 1
+[15:50:01] Final command string: --message Dump the trash August 08, 2025 --border-message 03:48 PM -c 1
+[15:50:01] Individual arguments: ['--message', 'Dump the trash August 08, 2025', '--border-message', '03:48 PM', '-c', '1']
+[15:50:01] Arg 0: '--message' -> chars: [45, 45, 109, 101, 115, 115, 97, 103, 101]
+[15:50:01] Arg 1: 'Dump the trash August 08, 2025' -> chars: [68, 117, 109, 112, 32, 116, 104, 101, 32, 116, 114, 97, 115, 104, 32, 65, 117, 103, 117, 115, 116, 32, 48, 56, 44, 32, 50, 48, 50, 53]
+[15:50:01] Arg 2: '--border-message' -> chars: [45, 45, 98, 111, 114, 100, 101, 114, 45, 109, 101, 115, 115, 97, 103, 101]
+[15:50:01] Arg 3: '03:48 PM' -> chars: [48, 51, 58, 52, 56, 32, 80, 77]
+[15:50:01] Arg 4: '-c' -> chars: [45, 99]
+[15:50:01] Arg 5: '1' -> chars: [49]
+[15:50:01] Command output: Using default printer: Munbyn RW402B
+DEBUG: message_only=False, space_start=94, space_end=199
+
+=== Debug Info ===
+Message-only mode: False
+Date string: 'August 08, 2025', font size: 37
+Message: 'Dump the trash August 08, 2025' (length: 30)
+Message font size: 54, lines: 2
+Message lines: ['Dump the trash', 'August 08, 2025']
+Border message: '03:48 PM' (length: 8)
+Border message font size: 57, lines: 1
+Border message lines: ['03:48 PM']
+Label dimensions: 456x253
+Label image generated for: August 08, 2025
+
+Printing 1 label(s)...
+  Print attempt 1 of 6...
+
+=== Printer Info ===
+Printer DPI: 203x203
+Physical size: 815x1215 device units
+Printable area: 815x1215 pixels
+Margins: left=0, top=0 device units
+Label should print from x=0 to x=456
+Printable width (815) > Image width (456)
+Auto-centering offset would be: 179px
+Using auto-center mode: offset=179px
+Drawing at position (179, 0, 635, 253)
+  Printer physical offset: 0 device units
+  Additional configured offset: 0px
+  Total horizontal offset: 179 device units
+Warning: Could not flush printer job: function takes exactly 3 arguments (1 given)
+Label sent to printer: Munbyn RW402B
+Image size: 456x253 pixels (created at 203 DPI)
+Drew at coordinates: (0, 0, 456, 253)
+Expected physical size: 2.25x1.25 inches
+
+Successfully printed 1 label(s).
+
+[15:50:01] Label preview copied to: logs\2025\August\August 08\runs\03-48-51 PM\label_preview.png

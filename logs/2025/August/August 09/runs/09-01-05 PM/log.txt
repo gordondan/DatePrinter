@@ -1,0 +1,21 @@
+[21:01:05] === Label Printer Log Session Started ===
+[21:01:05] Timestamp: 2025-08-09 21:01:05
+[21:01:05] Log directory: logs\2025\August\August 09\runs\09-01-05 PM
+[21:01:05] 
+[21:01:05] Command: label-printer.py --border-message Relays and Drivers -m Relays and Drivers
+[21:01:05] Configuration loaded successfully
+[21:01:05] Using default printer: Munbyn RW402B
+[21:01:05] --- Label Generation ---
+[21:01:05] Date: August 09, 2025
+[21:01:05] Message: 'Relays and Drivers' (length: 18)
+[21:01:05] Border message: 'Relays and Drivers' (length: 18)
+[21:01:05] Message-only mode: False
+[21:01:05] Label count: 1
+[21:01:05] SUCCESS: Label image generated
+[21:01:05]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:01:05] Preview saved: logs\2025\August\August 09\runs\09-01-05 PM\label_preview.png
+[21:01:05] Starting print job: 1 label(s) to Munbyn RW402B
+[21:01:05] Print attempt 1 of 6
+[21:01:05] SUCCESS: Label 1 printed successfully
+[21:01:05] SUCCESS: Print job completed
+[21:01:05]   Details: 1 label(s) printed successfully

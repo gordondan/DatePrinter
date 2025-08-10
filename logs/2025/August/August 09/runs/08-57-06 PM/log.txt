@@ -1,0 +1,4 @@
+[20:57:06] === Label Printer Log Session Started ===
+[20:57:06] Timestamp: 2025-08-09 20:57:06
+[20:57:06] Log directory: logs\2025\August\August 09\runs\08-57-06 PM
+[20:57:06] 

@@ -1,0 +1,16 @@
+[21:25:33] === Label Printer Log Session Started ===
+[21:25:33] Timestamp: 2025-08-09 21:25:33
+[21:25:33] Log directory: logs\2025\August\August 09\runs\09-25-33 PM
+[21:25:33] 
+[21:25:33] Command: label-printer.py -m Center Text -p
+[21:25:33] Configuration loaded successfully
+[21:25:33] Using default printer: Munbyn RW402B
+[21:25:33] --- Label Generation ---
+[21:25:33] Date: August 09, 2025
+[21:25:33] Message: 'Center Text' (length: 11)
+[21:25:33] Message-only mode: False
+[21:25:33] Label count: 1
+[21:25:33] SUCCESS: Label image generated
+[21:25:33]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:25:33] Preview saved: logs\2025\August\August 09\runs\09-25-33 PM\label_preview.png
+[21:25:33] Preview mode: No printing requested

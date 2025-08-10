@@ -1,0 +1,16 @@
+[21:17:54] === Label Printer Log Session Started ===
+[21:17:54] Timestamp: 2025-08-09 21:17:54
+[21:17:54] Log directory: logs\2025\August\August 09\runs\09-17-54 PM
+[21:17:54] 
+[21:17:54] Command: label-printer.py -b Border Test -p
+[21:17:54] Configuration loaded successfully
+[21:17:54] Using default printer: Munbyn RW402B
+[21:17:54] --- Label Generation ---
+[21:17:54] Date: August 09, 2025
+[21:17:54] Border message: 'Border Test' (length: 11)
+[21:17:54] Message-only mode: False
+[21:17:54] Label count: 1
+[21:17:54] SUCCESS: Label image generated
+[21:17:54]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:17:54] Preview saved: logs\2025\August\August 09\runs\09-17-54 PM\label_preview.png
+[21:17:54] Preview mode: No printing requested

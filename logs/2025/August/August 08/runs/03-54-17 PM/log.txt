@@ -1,0 +1,8 @@
+Label Printer GUI Session Started
+Timestamp: Friday, August 08, 2025 at 03:54:17 PM
+============================================================
+
+[15:55:02] Preview generation: python date-printer.py --message Dump the garbage 03:54 PM --border-message August 08, 2025 -c 1
+[15:55:03] Preview generated successfully
+[15:58:11] Preview generation: python date-printer.py --message Dump the garbage August 08, 2025 --border-message 03:54 PM -c 1
+[15:58:11] Preview generated successfully

@@ -1,0 +1,8 @@
+[11:03:25] === Label Printer Log Session Started ===
+[11:03:25] Timestamp: 2025-08-09 11:03:25
+[11:03:25] Log directory: logs\server\2025\August\August 09\runs\11-03-25 AM
+[11:03:25] 
+[11:03:25] Starting Label Printer Web Server
+[11:03:25] Server will be available at:
+[11:03:25]   Local: http://127.0.0.1:5000
+[11:03:25]   Network: http://192.168.1.100:5000

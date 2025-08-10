@@ -1,0 +1,16 @@
+[21:39:27] === Label Printer Log Session Started ===
+[21:39:27] Timestamp: 2025-08-09 21:39:27
+[21:39:27] Log directory: logs\2025\August\August 09\runs\09-39-27 PM
+[21:39:27] 
+[21:39:27] Command: label-printer.py -o -m Microcontrollers -c 2 -p
+[21:39:27] Configuration loaded successfully
+[21:39:27] Using default printer: Munbyn RW402B
+[21:39:27] --- Label Generation ---
+[21:39:27] Date: August 09, 2025
+[21:39:27] Message: 'Microcontrollers' (length: 16)
+[21:39:27] Message-only mode: True
+[21:39:27] Label count: 2
+[21:39:28] SUCCESS: Label image generated
+[21:39:28]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:39:28] Preview saved: logs\2025\August\August 09\runs\09-39-27 PM\label_preview.png
+[21:39:28] Preview mode: No printing requested

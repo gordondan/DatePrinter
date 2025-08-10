@@ -1,0 +1,16 @@
+[09:38:02] === Label Printer Log Session Started ===
+[09:38:02] Timestamp: 2025-08-09 09:38:02
+[09:38:02] Log directory: logs\2025\August\August 09\runs\09-38-02 AM
+[09:38:02] 
+[09:38:02] Command: label-printer.py -m A great day with a good Dog -c2 -p
+[09:38:02] Configuration loaded successfully
+[09:38:02] Using default printer: Munbyn RW402B
+[09:38:02] --- Label Generation ---
+[09:38:02] Date: August 09, 2025
+[09:38:02] Message: 'A great day with a good Dog' (length: 27)
+[09:38:02] Message-only mode: False
+[09:38:02] Label count: 2
+[09:38:02] SUCCESS: Label image generated
+[09:38:02]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[09:38:02] Preview saved: logs\2025\August\August 09\runs\09-38-02 AM\label_preview.png
+[09:38:02] Preview mode: No printing requested

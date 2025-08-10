@@ -1,0 +1,11 @@
+[11:04:53] === Label Printer Log Session Started ===
+[11:04:53] Timestamp: 2025-08-09 11:04:53
+[11:04:53] Log directory: logs\server\2025\August\August 09\runs\11-04-53 AM
+[11:04:53] 
+[11:04:53] Starting Label Printer Web Server
+[11:04:53] Server will be available at:
+[11:04:53]   Local: http://127.0.0.1:5000
+[11:04:53]   Network: http://192.168.1.100:5000
+[11:06:02] API Print request: message='Web Test', count=1, preview_only=True
+[11:06:03] SUCCESS: Label printed successfully
+[11:06:03]   Details: Command: python C:\Users\gordon\source\repos\LabelPrinter\label-printer.py -m Web Test --preview-only

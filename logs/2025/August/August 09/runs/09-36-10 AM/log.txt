@@ -1,0 +1,16 @@
+[09:36:10] === Label Printer Log Session Started ===
+[09:36:10] Timestamp: 2025-08-09 09:36:10
+[09:36:10] Log directory: logs\2025\August\August 09\runs\09-36-10 AM
+[09:36:10] 
+[09:36:10] Command: label-printer.py -m Chicken -o --preview-only
+[09:36:10] Configuration loaded successfully
+[09:36:10] Using default printer: Munbyn RW402B
+[09:36:10] --- Label Generation ---
+[09:36:10] Date: August 09, 2025
+[09:36:10] Message: 'Chicken' (length: 7)
+[09:36:10] Message-only mode: True
+[09:36:10] Label count: 1
+[09:36:10] SUCCESS: Label image generated
+[09:36:10]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[09:36:10] Preview saved: logs\2025\August\August 09\runs\09-36-10 AM\label_preview.png
+[09:36:10] Preview mode: No printing requested

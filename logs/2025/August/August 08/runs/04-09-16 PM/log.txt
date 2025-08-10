@@ -1,0 +1,100 @@
+Label Printer GUI Session Started
+Timestamp: Friday, August 08, 2025 at 04:09:16 PM
+============================================================
+
+[16:09:40] DEBUG: Template content: --message Dan's Ba
+[16:09:40] DEBUG: Variable values: {}
+[16:09:40] Executing: python date-printer.py --message Dan's Ba -c 1
+[16:09:40] Final command string: --message Dan's Ba -c 1
+[16:09:40] Individual arguments: ['--message', "Dan's Ba", '-c', '1']
+[16:09:40] Arg 0: '--message' -> chars: [45, 45, 109, 101, 115, 115, 97, 103, 101]
+[16:09:40] Arg 1: 'Dan's Ba' -> chars: [68, 97, 110, 39, 115, 32, 66, 97]
+[16:09:40] Arg 2: '-c' -> chars: [45, 99]
+[16:09:40] Arg 3: '1' -> chars: [49]
+[16:09:40] Command output: Using default printer: Munbyn RW402B
+DEBUG: message_only=False, space_start=94, space_end=199
+
+=== Debug Info ===
+Message-only mode: False
+Date string: 'August 08, 2025', font size: 37
+Message: 'Dan's Ba' (length: 8)
+Message font size: 99, lines: 1
+Message lines: ["Dan's Ba"]
+Label dimensions: 456x253
+Label image generated for: August 08, 2025
+
+Printing 1 label(s)...
+  Print attempt 1 of 6...
+
+=== Printer Info ===
+Printer DPI: 203x203
+Physical size: 815x1215 device units
+Printable area: 815x1215 pixels
+Margins: left=0, top=0 device units
+Label should print from x=0 to x=456
+Printable width (815) > Image width (456)
+Auto-centering offset would be: 179px
+Using auto-center mode: offset=179px
+Drawing at position (179, 0, 635, 253)
+  Printer physical offset: 0 device units
+  Additional configured offset: 0px
+  Total horizontal offset: 179 device units
+Warning: Could not flush printer job: function takes exactly 3 arguments (1 given)
+Label sent to printer: Munbyn RW402B
+Image size: 456x253 pixels (created at 203 DPI)
+Drew at coordinates: (0, 0, 456, 253)
+Expected physical size: 2.25x1.25 inches
+
+Successfully printed 1 label(s).
+
+[16:09:40] Label preview copied to: logs\2025\August\August 08\runs\04-09-16 PM\label_preview.png
+[16:09:57] DEBUG: Template content: --message Dan's Ba
+[16:09:57] DEBUG: Variable values: {}
+[16:09:57] Executing: python date-printer.py --message Dan's Ba -c 1
+[16:09:57] Final command string: --message Dan's Ba -c 1
+[16:09:57] Individual arguments: ['--message', "Dan's Ba", '-c', '1']
+[16:09:57] Arg 0: '--message' -> chars: [45, 45, 109, 101, 115, 115, 97, 103, 101]
+[16:09:57] Arg 1: 'Dan's Ba' -> chars: [68, 97, 110, 39, 115, 32, 66, 97]
+[16:09:57] Arg 2: '-c' -> chars: [45, 99]
+[16:09:57] Arg 3: '1' -> chars: [49]
+[16:09:57] Command output: Using default printer: Munbyn RW402B
+DEBUG: message_only=False, space_start=94, space_end=199
+
+=== Debug Info ===
+Message-only mode: False
+Date string: 'August 08, 2025', font size: 37
+Message: 'Dan's Ba' (length: 8)
+Message font size: 99, lines: 1
+Message lines: ["Dan's Ba"]
+Label dimensions: 456x253
+Label image generated for: August 08, 2025
+
+Printing 1 label(s)...
+  Print attempt 1 of 6...
+
+=== Printer Info ===
+Printer DPI: 203x203
+Physical size: 815x1215 device units
+Printable area: 815x1215 pixels
+Margins: left=0, top=0 device units
+Label should print from x=0 to x=456
+Printable width (815) > Image width (456)
+Auto-centering offset would be: 179px
+Using auto-center mode: offset=179px
+Drawing at position (179, 0, 635, 253)
+  Printer physical offset: 0 device units
+  Additional configured offset: 0px
+  Total horizontal offset: 179 device units
+Warning: Could not flush printer job: function takes exactly 3 arguments (1 given)
+Label sent to printer: Munbyn RW402B
+Image size: 456x253 pixels (created at 203 DPI)
+Drew at coordinates: (0, 0, 456, 253)
+Expected physical size: 2.25x1.25 inches
+
+Successfully printed 1 label(s).
+
+[16:09:57] Label preview copied to: logs\2025\August\August 08\runs\04-09-16 PM\label_preview.png
+[16:11:22] PREVIEW DEBUG: Template content: --message {{MESSAGE}} --border-message {{BORDER MESSAGE}}
+[16:11:22] PREVIEW DEBUG: Variable values: {'MESSAGE': 'Dump the kitchen garbage', 'BORDER MESSAGE': '[CURRENT-TIME]'}
+[16:11:22] Preview generation: python date-printer.py --message Dump the kitchen garbage --border-message 04:09 PM -c 1
+[16:11:23] Preview generated successfully

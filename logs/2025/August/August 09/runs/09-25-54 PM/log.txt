@@ -1,0 +1,20 @@
+[21:25:54] === Label Printer Log Session Started ===
+[21:25:54] Timestamp: 2025-08-09 21:25:54
+[21:25:54] Log directory: logs\2025\August\August 09\runs\09-25-54 PM
+[21:25:54] 
+[21:25:54] Command: label-printer.py --border-message IBT-2 DC Motor Driver -o
+[21:25:54] Configuration loaded successfully
+[21:25:54] Using default printer: Munbyn RW402B
+[21:25:54] --- Label Generation ---
+[21:25:54] Date: August 09, 2025
+[21:25:54] Border message: 'IBT-2 DC Motor Driver' (length: 21)
+[21:25:54] Message-only mode: True
+[21:25:54] Label count: 1
+[21:25:54] SUCCESS: Label image generated
+[21:25:54]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:25:54] Preview saved: logs\2025\August\August 09\runs\09-25-54 PM\label_preview.png
+[21:25:54] Starting print job: 1 label(s) to Munbyn RW402B
+[21:25:54] Print attempt 1 of 6
+[21:25:54] SUCCESS: Label 1 printed successfully
+[21:25:54] SUCCESS: Print job completed
+[21:25:54]   Details: 1 label(s) printed successfully

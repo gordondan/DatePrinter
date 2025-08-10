@@ -1,0 +1,25 @@
+[22:04:40] === Label Printer Log Session Started ===
+[22:04:40] Timestamp: 2025-08-09 22:04:40
+[22:04:40] Log directory: logs\2025\August\August 09\runs\10-04-40 PM
+[22:04:40] 
+[22:04:40] Command: label-printer.py -o -m Microconrollers -b ************ -c 2
+[22:04:40] Configuration loaded successfully
+[22:04:40] Using default printer: Munbyn RW402B
+[22:04:40] --- Label Generation ---
+[22:04:40] Date: August 09, 2025
+[22:04:40] Message: 'Microconrollers' (length: 15)
+[22:04:40] Border message: '************' (length: 12)
+[22:04:40] Message-only mode: True
+[22:04:40] Label count: 2
+[22:04:41] SUCCESS: Label image generated
+[22:04:41]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:04:41] Preview saved: logs\2025\August\August 09\runs\10-04-40 PM\label_preview.png
+[22:04:41] Starting print job: 2 label(s) to Munbyn RW402B
+[22:04:41] Printing label 1 of 2
+[22:04:41] Print attempt 1 of 6
+[22:04:41] SUCCESS: Label 1 printed successfully
+[22:04:42] Printing label 2 of 2
+[22:04:42] Print attempt 1 of 6
+[22:04:42] SUCCESS: Label 2 printed successfully
+[22:04:42] SUCCESS: Print job completed
+[22:04:42]   Details: 2 label(s) printed successfully

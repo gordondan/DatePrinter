@@ -1,0 +1,16 @@
+[21:23:36] === Label Printer Log Session Started ===
+[21:23:36] Timestamp: 2025-08-09 21:23:36
+[21:23:36] Log directory: logs\2025\August\August 09\runs\09-23-36 PM
+[21:23:36] 
+[21:23:36] Command: label-printer.py --border-message Power Supplies -o -p
+[21:23:36] Configuration loaded successfully
+[21:23:36] Using default printer: Munbyn RW402B
+[21:23:36] --- Label Generation ---
+[21:23:36] Date: August 09, 2025
+[21:23:36] Border message: 'Power Supplies' (length: 14)
+[21:23:36] Message-only mode: True
+[21:23:36] Label count: 1
+[21:23:36] SUCCESS: Label image generated
+[21:23:36]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[21:23:36] Preview saved: logs\2025\August\August 09\runs\09-23-36 PM\label_preview.png
+[21:23:36] Preview mode: No printing requested

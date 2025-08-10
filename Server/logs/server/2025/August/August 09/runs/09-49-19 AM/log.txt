@@ -1,0 +1,14 @@
+[09:49:19] === Label Printer Log Session Started ===
+[09:49:19] Timestamp: 2025-08-09 09:49:19
+[09:49:19] Log directory: logs\server\2025\August\August 09\runs\09-49-19 AM
+[09:49:19] 
+[09:49:19] Starting Label Printer Web Server
+[09:49:19] Server will be available at:
+[09:49:19]   Local: http://127.0.0.1:5000
+[09:49:19]   Network: http://192.168.1.100:5000
+[09:49:33] API Print request: message='Test', count=1, preview_only=True
+[09:49:34] SUCCESS: Label printed successfully
+[09:49:34]   Details: Command: python C:\Users\gordon\source\repos\LabelPrinter\label-printer.py -m Test --preview-only
+[09:49:56] API Print request: message='Chicken', count=1, preview_only=True
+[09:49:57] SUCCESS: Label printed successfully
+[09:49:57]   Details: Command: python C:\Users\gordon\source\repos\LabelPrinter\label-printer.py -m Chicken -o --preview-only

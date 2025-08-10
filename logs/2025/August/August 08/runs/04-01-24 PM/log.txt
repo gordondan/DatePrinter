@@ -1,0 +1,8 @@
+Label Printer GUI Session Started
+Timestamp: Friday, August 08, 2025 at 04:01:24 PM
+============================================================
+
+[16:01:53] PREVIEW DEBUG: Template content: --message {{MESSAGE}} --border-message {{BORDER MESSAGE}}
+[16:01:53] PREVIEW DEBUG: Variable values: {'MESSAGE': 'Dump Kitchen Garbage [DATE]', 'BORDER MESSAGE': '[CURRENT-TIME]'}
+[16:01:53] Preview generation: python date-printer.py --message Dump Kitchen Garbage August 08, 2025 --border-message 04:01 PM -c 1
+[16:01:53] Preview generated successfully
