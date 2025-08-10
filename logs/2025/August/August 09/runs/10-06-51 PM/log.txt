@@ -1,0 +1,33 @@
+[22:06:51] === Label Printer Log Session Started ===
+[22:06:51] Timestamp: 2025-08-09 22:06:51
+[22:06:51] Log directory: logs\2025\August\August 09\runs\10-06-51 PM
+[22:06:51] 
+[22:06:51] Command: label-printer.py -m Center -b Edge -o -p
+[22:06:51] Configuration loaded successfully
+[22:06:51] Using default printer: Munbyn RW402B
+[22:06:51] --- Label Generation ---
+[22:06:51] Date: August 09, 2025
+[22:06:51] Message: 'Center' (length: 6)
+[22:06:51] Border message: 'Edge' (length: 4)
+[22:06:51] Message-only mode: True
+[22:06:51] Label count: 1
+[22:06:51] SUCCESS: Label image generated
+[22:06:51]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:06:51] Preview saved: logs\2025\August\August 09\runs\10-06-51 PM\label_preview.png
+[22:06:51] Preview mode: No printing requested
+[22:06:51] === Label Printer Log Session Started ===
+[22:06:51] Timestamp: 2025-08-09 22:06:51
+[22:06:51] Log directory: logs\2025\August\August 09\runs\10-06-51 PM
+[22:06:51] 
+[22:06:51] Command: label-printer.py -o -m Microcontrollers -c 2 -p
+[22:06:51] Configuration loaded successfully
+[22:06:51] Using default printer: Munbyn RW402B
+[22:06:51] --- Label Generation ---
+[22:06:51] Date: August 09, 2025
+[22:06:51] Message: 'Microcontrollers' (length: 16)
+[22:06:51] Message-only mode: True
+[22:06:51] Label count: 2
+[22:06:51] SUCCESS: Label image generated
+[22:06:51]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:06:51] Preview saved: logs\2025\August\August 09\runs\10-06-51 PM\label_preview.png
+[22:06:51] Preview mode: No printing requested

@@ -517,8 +517,9 @@ def draw_main_message(image, draw, message, config, layout, width_px):
 
 def draw_border_message(image, draw, border_message, config, layout, width_px):
     """Draw border message in top and bottom zones with proper 180° rotation for bottom."""
-    # Calculate 1/16" padding in pixels (0.0625" * 203 DPI = ~13px)
-    border_padding = 13
+    # Calculate optimal padding for border text (~4px for good balance)
+    # Maintains visual spacing while maximizing readable font size
+    border_padding = 4
     
     # Draw in top zone (normal orientation) with extra padding
     if 'border_top_start' in layout:

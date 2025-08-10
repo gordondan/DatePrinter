@@ -1,0 +1,32 @@
+[22:06:50] === Label Printer Log Session Started ===
+[22:06:50] Timestamp: 2025-08-09 22:06:50
+[22:06:50] Log directory: logs\2025\August\August 09\runs\10-06-50 PM
+[22:06:50] 
+[22:06:50] Command: label-printer.py -b Test Border -o -p
+[22:06:50] Configuration loaded successfully
+[22:06:50] Using default printer: Munbyn RW402B
+[22:06:50] --- Label Generation ---
+[22:06:50] Date: August 09, 2025
+[22:06:50] Border message: 'Test Border' (length: 11)
+[22:06:50] Message-only mode: True
+[22:06:50] Label count: 1
+[22:06:50] SUCCESS: Label image generated
+[22:06:50]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:06:50] Preview saved: logs\2025\August\August 09\runs\10-06-50 PM\label_preview.png
+[22:06:50] Preview mode: No printing requested
+[22:06:50] === Label Printer Log Session Started ===
+[22:06:50] Timestamp: 2025-08-09 22:06:50
+[22:06:50] Log directory: logs\2025\August\August 09\runs\10-06-50 PM
+[22:06:50] 
+[22:06:50] Command: label-printer.py -b Equipment Labels -o -p
+[22:06:50] Configuration loaded successfully
+[22:06:50] Using default printer: Munbyn RW402B
+[22:06:50] --- Label Generation ---
+[22:06:50] Date: August 09, 2025
+[22:06:50] Border message: 'Equipment Labels' (length: 16)
+[22:06:50] Message-only mode: True
+[22:06:50] Label count: 1
+[22:06:50] SUCCESS: Label image generated
+[22:06:50]   Details: Date: August 09, 2025, Dimensions: (456, 253)
+[22:06:50] Preview saved: logs\2025\August\August 09\runs\10-06-50 PM\label_preview.png
+[22:06:50] Preview mode: No printing requested
