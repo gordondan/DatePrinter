@@ -72,7 +72,7 @@ def create_bash_script(csv_path: Path, output_script_name: str):
             reader = csv.DictReader(infile)
             
             for i, row in enumerate(reader, 1):
-                command_parts = ["python", "label-printer.py"]
+                command_parts = ["python3", "label-printer.py"]
 
                 # Iterate through the headers found in the CSV file
                 for header in reader.fieldnames:
@@ -85,7 +85,6 @@ def create_bash_script(csv_path: Path, output_script_name: str):
                     
                     value = row[header].strip()
                     
-                    # --- CRITICAL LOGIC ---
                     # If a field for a column is empty on a particular row,
                     # skip adding the option altogether.
                     if not value:
@@ -104,9 +103,7 @@ def create_bash_script(csv_path: Path, output_script_name: str):
                         command_parts.append(option)
                         command_parts.append(f'"{value}"')
                 
-                # Only add a command to the script if it has more than the base parts
                 if len(command_parts) > 2:
-                    # Add a comment for clarity in the bash script
                     bash_commands.append(f"# --- Label command for row {i} ---")
                     bash_commands.append(f'echo "Executing command for row {i}..."')
                     bash_commands.append(" ".join(command_parts))
@@ -120,11 +117,13 @@ def create_bash_script(csv_path: Path, output_script_name: str):
         sys.exit(1)
 
     # Write the collected commands to the output bash file
-    with open(output_script_name, 'w', encoding='utf-8') as outfile:
+    # =========================================================================
+    # THE FIX IS HERE: newline='\n' ensures Unix-style line endings for bash
+    # =========================================================================
+    with open(output_script_name, 'w', encoding='utf-8', newline='\n') as outfile:
         outfile.write("\n".join(bash_commands))
         outfile.write("\n\necho 'All label commands executed successfully.'\n")
 
-    # Make the script executable for the user
     try:
         output_path = Path(output_script_name)
         output_path.chmod(0o755)
