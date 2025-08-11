@@ -375,7 +375,7 @@ def draw_centered_message(draw, message, font_path, width_px, space_start, space
     return message_font_size, final_lines, block_start_y
 
 def calculate_layout_spaces(width_px, height_px, printer_config, config, date_str, date_obj, 
-                           show_dates, show_main_message, show_border_message, draw, min_font, max_font):
+                           show_dates, show_main_message, show_border_message, show_side_border, draw, min_font, max_font):
     """
     Calculate layout spaces using proper zone-based layout:
     - Top Zone (25%): Border text (readable right-side-up)
@@ -410,10 +410,36 @@ def calculate_layout_spaces(width_px, height_px, printer_config, config, date_st
     layout['bottom_zone_start'] = printable_start_y + int(3 * zone_height) + padding
     layout['bottom_zone_end'] = printable_start_y + printable_height - padding
     
-    # Store printable dimensions for width validation
-    layout['printable_width'] = printable_width
+    # Calculate side border zones if needed
+    if show_side_border:
+        # Side borders span from bottom of top border to top of bottom border with 6px padding
+        side_border_padding = 6
+        layout['left_side_start_y'] = layout['top_zone_end'] + side_border_padding  
+        layout['left_side_end_y'] = layout['bottom_zone_start'] - side_border_padding
+        layout['right_side_start_y'] = layout['left_side_start_y']
+        layout['right_side_end_y'] = layout['left_side_end_y']
+        
+        # Side borders are narrow zones on left and right
+        side_border_width = int(zone_height)  # Use same width as top/bottom border height
+        layout['left_side_start_x'] = border_offset + padding
+        layout['left_side_end_x'] = layout['left_side_start_x'] + side_border_width
+        layout['right_side_start_x'] = border_offset + printable_width - side_border_width - padding  
+        layout['right_side_end_x'] = border_offset + printable_width - padding
+    
+    # Adjust printable width if side borders are present
+    effective_printable_width = printable_width
+    effective_printable_start_x = border_offset
+    
+    if show_side_border:
+        # Reduce printable width by side border width on both sides
+        side_border_width = int(zone_height)  # Same width as calculated above
+        effective_printable_width = printable_width - (2 * side_border_width) - (2 * padding)
+        effective_printable_start_x = border_offset + side_border_width + padding
+    
+    # Store effective printable dimensions for width validation
+    layout['printable_width'] = effective_printable_width
     layout['printable_height'] = printable_height
-    layout['printable_start_x'] = border_offset
+    layout['printable_start_x'] = effective_printable_start_x
     layout['printable_start_y'] = printable_start_y
     
     # Determine what goes in each zone based on content type
@@ -574,6 +600,64 @@ def paste_image_on_label(base_image, user_image, layout):
     # Paste the image onto the base label
     base_image.paste(user_image, (paste_x, paste_y))
 
+def draw_side_border_message(image, draw, side_border, config, layout, width_px, height_px):
+    """Draw side border message on left and right with 90°/-90° rotation."""
+    if 'left_side_start_x' not in layout:
+        return
+    
+    # Calculate font size for side text (use same height as top/bottom borders)
+    available_height = layout['left_side_end_y'] - layout['left_side_start_y']
+    available_width = layout['left_side_end_x'] - layout['left_side_start_x']
+    
+    # Find optimal font size for the text in the side area
+    # Since text will be rotated, we swap width/height for font calculation
+    font_size, wrapped_lines, total_height = find_optimal_font_size_for_wrapped_text(
+        side_border, config['font_path'], draw, available_height, available_width - 8, 10, 500
+    )
+    
+    font = ImageFont.truetype(config['font_path'], font_size)
+    
+    # Draw left side (90° clockwise rotation)
+    # For side borders, join wrapped lines with spaces to keep text on one "line"
+    text = ' '.join(wrapped_lines)
+    
+    # Create temporary image for left side text (90° rotation)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    temp_img = Image.new('L', (text_width + 20, text_height + 20), 255)
+    temp_draw = ImageDraw.Draw(temp_img)
+    temp_draw.text((10 - bbox[0], 10 - bbox[1]), text, font=font, fill=0)
+    
+    # Rotate 90° clockwise for left side
+    rotated_left = temp_img.rotate(-90, expand=True)
+    
+    # Position on left side
+    left_center_x = (layout['left_side_start_x'] + layout['left_side_end_x']) // 2
+    left_center_y = (layout['left_side_start_y'] + layout['left_side_end_y']) // 2
+    paste_x = left_center_x - rotated_left.width // 2
+    paste_y = left_center_y - rotated_left.height // 2
+    
+    # Paste left side text
+    mask = rotated_left.point(lambda x: 255 if x < 128 else 0, mode='1')
+    black_overlay = Image.new('L', rotated_left.size, 0)
+    image.paste(black_overlay, (paste_x, paste_y), mask)
+    
+    # Draw right side (90° counter-clockwise rotation)
+    rotated_right = temp_img.rotate(90, expand=True)
+    
+    # Position on right side  
+    right_center_x = (layout['right_side_start_x'] + layout['right_side_end_x']) // 2
+    right_center_y = (layout['right_side_start_y'] + layout['right_side_end_y']) // 2
+    paste_x = right_center_x - rotated_right.width // 2
+    paste_y = right_center_y - rotated_right.height // 2
+    
+    # Paste right side text
+    mask = rotated_right.point(lambda x: 255 if x < 128 else 0, mode='1')
+    black_overlay = Image.new('L', rotated_right.size, 0)
+    image.paste(black_overlay, (paste_x, paste_y), mask)
+
 def draw_border_message(image, draw, border_message, config, layout, width_px):
     """Draw border message in top and bottom zones with proper 180° rotation for bottom."""
     # Calculate optimal padding for border text (~4px for good balance)
@@ -609,7 +693,7 @@ def reconnect_bluetooth_device(device_name):
     except Exception as e:
         print("Bluetooth reconnect attempt failed or not supported. Error:", e)
 
-def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, message_only=False, image_path=None, logger=None):
+def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, side_border=None, show_date=False, image_path=None, logger=None):
     """Generate a label image with dates and/or message."""
     # Create image based on printer-specific settings
     width_px = int(printer_config['label_width_in'] * printer_config['dpi'])
@@ -622,13 +706,14 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     max_font = config.get('max_font_size', 500)
     
     # Determine what content to show
-    show_dates = not message_only
+    show_dates = show_date  # Now dates are only shown when -o flag is present
     show_main_message = message is not None
     show_border_message = border_message is not None
+    show_side_border = side_border is not None
     
     # Calculate layout spaces based on what content we're showing
     layout = calculate_layout_spaces(width_px, height_px, printer_config, config, date_str, date_obj, 
-                                    show_dates, show_main_message, show_border_message, draw, min_font, max_font)
+                                    show_dates, show_main_message, show_border_message, show_side_border, draw, min_font, max_font)
     
     # Layout calculation complete
     
@@ -653,18 +738,23 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
     if show_border_message:
         draw_border_message(image, draw, border_message, config, layout, width_px)
     
+    if show_side_border:
+        draw_side_border_message(image, draw, side_border, config, layout, width_px, height_px)
+    
     # Draw border
     draw_border(draw, width_px, height_px)
     
     # Debug output
     print(f"\n=== Debug Info ===")
-    print(f"Message-only mode: {message_only}")
+    print(f"Show dates: {show_dates}")
     if show_dates:
-        print(f"Date string: '{date_str}', font size: {layout['date_font_size']}")
+        print(f"Date string: '{date_str}', font size: {layout.get('date_font_size', 'N/A')}")
     if show_main_message:
         print(f"Message: '{message}' (length: {len(message)})")
     if show_border_message:
         print(f"Border message: '{border_message}' (length: {len(border_message)})")
+    if show_side_border:
+        print(f"Side border message: '{side_border}' (length: {len(side_border)})")
     print(f"Label dimensions: {width_px}x{height_px}")
     
     image.save("label_preview.png")  # Optional preview
@@ -815,11 +905,13 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--message', type=str, 
                         help='Custom message to print in center of label')
     parser.add_argument('-b', '--border-message', type=str,
-                        help='Custom border message - follows date scaling rules when --message is present')
+                        help='Custom border message - appears on top and bottom borders with rotation')
+    parser.add_argument('-s', '--side-border', type=str,
+                        help='Custom side border message - appears on left and right sides with 90°/-90° rotation')
     parser.add_argument('-i', '--image', type=str,
                         help='Path to PNG image file to include on label (will be cropped to fit printable area if oversized)')
-    parser.add_argument('-o', '--message-only', action='store_true',
-                        help='When using -m/--message, omit the dates and show only the message')
+    parser.add_argument('-o', '--show-date', action='store_true',
+                        help='Show dates on the label (dates are hidden by default)')
     parser.add_argument('-p', '--preview-only', action='store_true',
                         help='Generate label image only (do not print to printer)')
     args = parser.parse_args()
@@ -898,9 +990,9 @@ if __name__ == "__main__":
         date_str = date_obj.strftime(config['date_format'])
     
     # Log label generation details
-    logger.log_label_generation(date_str, args.message, args.border_message, args.message_only, args.count)
+    logger.log_label_generation(date_str, args.message, args.border_message, not args.show_date, args.count)
     
-    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.border_message, args.message_only, args.image, logger)
+    label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.border_message, args.side_border, args.show_date, args.image, logger)
     print(f"Label image generated for: {date_str}")
     logger.log_success("Label image generated", f"Date: {date_str}, Dimensions: {label_img.size}")
     

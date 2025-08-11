@@ -33,3 +33,7 @@ label_preview_test.png
 Thumbs.db
 label_preview.png
 .env.example
+
+#logs
+Logs/
+logs/
