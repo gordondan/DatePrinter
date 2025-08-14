@@ -1,0 +1,30 @@
+[Unit]
+Description=LabelPrinter Gunicorn Service
+After=network.target
+
+[Service]
+Type=simple
+# Paths for this repository
+WorkingDirectory=/home/relay-admin/repo/LabelPrinter
+Environment="PATH=/home/relay-admin/repo/LabelPrinter/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Bind to Unix socket for Nginx proxy
+ExecStart=/home/relay-admin/repo/LabelPrinter/.venv/bin/gunicorn -w 2 -b unix:/run/labelprinter/labelprinter.sock server:app
+
+# Run as local user; group www-data so Nginx can access the socket
+User=relay-admin
+Group=www-data
+SupplementaryGroups=lp,bluetooth
+
+# Create /run/labelprinter and manage permissions
+RuntimeDirectory=labelprinter
+RuntimeDirectoryMode=0775
+UMask=0007
+
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
