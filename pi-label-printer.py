@@ -679,20 +679,10 @@ def draw_border_message(image, draw, border_message, config, layout, width_px):
 
 def reconnect_bluetooth_device(device_name):
     """
-    Attempts to reconnect the Bluetooth device using PowerShell (best effort).
+    On Raspberry Pi, BLE connection is handled automatically by the BLE routines in rw402b_ble/printer.py.
+    No manual reconnect is needed; a new connection will be attempted each print.
     """
-    print(f"Trying to reconnect Bluetooth device: {device_name}")
-    connect_cmd = f'''
-    $device = Get-PnpDevice | Where-Object {{ $_.FriendlyName -like "*{device_name}*" }}
-    if ($device) {{
-        $deviceId = $device.InstanceId
-        & "C:\\Windows\\System32\\DevicePairingWizard.exe" /connect $deviceId
-    }}'''
-    try:
-        subprocess.run(["powershell", "-Command", connect_cmd], check=True)
-        print("Bluetooth reconnect command sent.")
-    except Exception as e:
-        print("Bluetooth reconnect attempt failed or not supported. Error:", e)
+    print(f"No manual Bluetooth reconnect needed on Raspberry Pi. BLE connection is handled by the printer library.")
 
 def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, side_border=None, show_date=False, image_path=None, logger=None):
     """Generate a label image with dates and/or message."""
