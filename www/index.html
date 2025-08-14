@@ -1,39 +1,87 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Your Home Server</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-        }
-        p {
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to Your Home Server!</h1>
-        <p>Your Nginx server is running successfully.</p>
-        <p>Replace this page with your own content.</p>
-    </div>
-</body>
-</html>
+<!doctype html>
+<meta charset="utf-8" />
+<title>Pi Label Printer</title>
+<style>
+  :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; }
+  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; margin: 24px; }
+  h1 { margin: 0 0 8px; }
+  .muted { color: var(--muted); margin-bottom: 18px; }
+  label { display: block; margin: 8px 0 4px; }
+  input[type=text], input[type=number], input[type=date] { width: 360px; padding: 8px; }
+  .row { margin-bottom: 12px; }
+  button { padding: 10px 14px; }
+  pre { background: var(--bg); padding: 12px; border-radius: 6px; overflow: auto; max-width: 900px; }
+  .status { margin-top: 12px; font-weight: 600; }
+  .ok { color: var(--ok); }
+  .err { color: var(--err); }
+  .links { margin: 16px 0 24px; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+<h1>Pi Label Printer</h1>
+<div class="muted">Submit options to run pi-label-printer.py on the server, or use the quick link to print today's date.</div>
+
+<div class="links">
+  <a href="/app/date">Print today's date (quick)</a>
+  &nbsp;•&nbsp;
+  <a href="/api/pi-label/options" target="_blank" rel="noopener">API options (JSON)</a>
+  &nbsp;•&nbsp;
+  <a href="/app">Home</a>
+  &nbsp;•&nbsp;
+  <a href="/app/pi-label">Form only</a>
+  </div>
+
+<form id="labelForm">
+  <div class="row"><label>Count</label><input type="number" name="count" value="1" min="1" required /></div>
+  <div class="row"><label>Date</label><input type="date" name="date" /></div>
+  <div class="row"><label>Message</label><input type="text" name="message" placeholder="Main label message" /></div>
+  <div class="row"><label>Border Message</label><input type="text" name="border_message" placeholder="Top/Bottom border text" /></div>
+  <div class="row"><label>Side Border</label><input type="text" name="side_border" placeholder="Left/Right border text" /></div>
+  <div class="row"><label>Image Path</label><input type="text" name="image" placeholder="/path/to/image.png" /></div>
+  <div class="row"><label><input type="checkbox" name="list" /> Force printer selection menu</label></div>
+  <div class="row"><label><input type="checkbox" name="show_date" /> Show date on label</label></div>
+  <div class="row"><label><input type="checkbox" name="preview_only" /> Preview only (no print)</label></div>
+  <button type="submit" id="submitBtn">Submit</button>
+  <span id="status" class="status"></span>
+</form>
+
+<h2>Result</h2>
+<pre id="result"></pre>
+
+<script>
+const form = document.getElementById('labelForm');
+const submitBtn = document.getElementById('submitBtn');
+const statusEl = document.getElementById('status');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = new FormData(form);
+  const payload = {
+    list: data.get('list') === 'on',
+    count: data.get('count') ? Number(data.get('count')) : undefined,
+    date: data.get('date') || undefined,
+    message: data.get('message') || undefined,
+    border_message: data.get('border_message') || undefined,
+    side_border: data.get('side_border') || undefined,
+    image: data.get('image') || undefined,
+    show_date: data.get('show_date') === 'on',
+    preview_only: data.get('preview_only') === 'on',
+  };
+  statusEl.textContent = '';
+  statusEl.className = 'status';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+  const res = await fetch('/api/pi-label/print', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  let body;
+  try { body = await res.json(); } catch (_) { body = await res.text(); }
+  document.getElementById('result').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+  statusEl.textContent = res.ok ? 'OK: Print command executed' : 'Error: See details below';
+  statusEl.className = 'status ' + (res.ok ? 'ok' : 'err');
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Submit';
+});
+</script>
+

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, send_from_directory
 import subprocess
 import sys
 import os
@@ -10,7 +10,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 
-@app.route("/app/pi-label/options", methods=["GET"])
+@app.route("/api/pi-label/options", methods=["GET"])
 def get_pi_label_options():
     """
     Return the available CLI options for pi-label-printer.py as JSON.
@@ -87,82 +87,8 @@ def get_pi_label_options():
 
 @app.route("/app/pi-label", methods=["GET"])
 def pi_label_form():
-    """Simple HTML form to submit options to the POST endpoint."""
-    return Response(
-        """
-        <!doctype html>
-        <meta charset="utf-8" />
-        <title>Pi Label Printer</title>
-        <style>
-          :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; }
-          body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; margin: 24px; }
-          h1 { margin: 0 0 8px; }
-          .muted { color: var(--muted); margin-bottom: 18px; }
-          label { display: block; margin: 8px 0 4px; }
-          input[type=text], input[type=number], input[type=date] { width: 360px; padding: 8px; }
-          .row { margin-bottom: 12px; }
-          button { padding: 10px 14px; }
-          pre { background: var(--bg); padding: 12px; border-radius: 6px; overflow: auto; max-width: 900px; }
-          .status { margin-top: 12px; font-weight: 600; }
-          .ok { color: var(--ok); }
-          .err { color: var(--err); }
-        </style>
-        <h1>Pi Label Printer</h1>
-        <div class="muted">Submit options to run pi-label-printer.py on the server.</div>
-        <form id="labelForm">
-          <div class="row"><label>Count</label><input type="number" name="count" value="1" min="1" required /></div>
-          <div class="row"><label>Date</label><input type="date" name="date" /></div>
-          <div class="row"><label>Message</label><input type="text" name="message" placeholder="Main label message" /></div>
-          <div class="row"><label>Border Message</label><input type="text" name="border_message" placeholder="Top/Bottom border text" /></div>
-          <div class="row"><label>Side Border</label><input type="text" name="side_border" placeholder="Left/Right border text" /></div>
-          <div class="row"><label>Image Path</label><input type="text" name="image" placeholder="/path/to/image.png" /></div>
-          <div class="row"><label><input type="checkbox" name="list" /> Force printer selection menu</label></div>
-          <div class="row"><label><input type="checkbox" name="show_date" /> Show date on label</label></div>
-          <div class="row"><label><input type="checkbox" name="preview_only" /> Preview only (no print)</label></div>
-          <button type="submit" id="submitBtn">Submit</button>
-        </form>
-        <div id="status" class="status"></div>
-        <h2>Result</h2>
-        <pre id="result"></pre>
-        <script>
-        const form = document.getElementById('labelForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const statusEl = document.getElementById('status');
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const data = new FormData(form);
-          const payload = {
-            list: data.get('list') === 'on',
-            count: data.get('count') ? Number(data.get('count')) : undefined,
-            date: data.get('date') || undefined,
-            message: data.get('message') || undefined,
-            border_message: data.get('border_message') || undefined,
-            side_border: data.get('side_border') || undefined,
-            image: data.get('image') || undefined,
-            show_date: data.get('show_date') === 'on',
-            preview_only: data.get('preview_only') === 'on',
-          };
-          statusEl.textContent = '';
-          statusEl.className = 'status';
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Submitting...';
-          const res = await fetch('/app/pi-label/print', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          let body;
-          try { body = await res.json(); } catch (_) { body = await res.text(); }
-          document.getElementById('result').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
-          statusEl.textContent = res.ok ? 'OK: Print command executed' : 'Error: See details below';
-          statusEl.className = 'status ' + (res.ok ? 'ok' : 'err');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit';
-        });
-        </script>
-        """,
-        mimetype="text/html",
-    )
+    """Serve the HTML UI (now also available at /app via index.html)."""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
 
 
 def build_command_from_payload(payload: dict):
@@ -237,7 +163,7 @@ def validate_payload(payload: dict):
     return (len(errors) == 0, errors)
 
 
-@app.route('/app/pi-label/print', methods=['POST'])
+@app.route('/api/pi-label/print', methods=['POST'])
 def post_pi_label_print():
     """Trigger printing via pi-label-printer.py with provided options (JSON body)."""
     data = request.get_json(silent=True) or {}
@@ -269,6 +195,50 @@ def post_pi_label_print():
         return jsonify({'error': 'pi-label-printer.py not found', 'command': cmd}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/app', methods=['GET'])
+@app.route('/app/', methods=['GET'])
+def app_index():
+    """Serve the index HTML that includes the print form and links."""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
+
+
+@app.route('/app/date', methods=['GET'])
+def app_date_print():
+    """Run pi-label-printer.py with default options (today's date) and show result."""
+    script_path = os.path.join(os.path.dirname(__file__), 'pi-label-printer.py')
+    cmd = [sys.executable or 'python3', script_path]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        ok = result.returncode == 0
+        status = 'OK' if ok else 'Error'
+        color = '#0a7d29' if ok else '#b00020'
+        body = f"""
+        <!doctype html>
+        <meta charset='utf-8' />
+        <title>Pi Label Printer — /app/date</title>
+        <style>
+          body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; margin: 24px; }}
+          .status {{ color: {color}; font-weight: 600; }}
+          pre {{ background: #f6f8fa; padding: 12px; border-radius: 6px; }}
+          a {{ color: #0366d6; text-decoration: none; }}
+        </style>
+        <h1>Print Today's Date</h1>
+        <div class='status'>{status}: ran pi-label-printer.py</div>
+        <h2>Command</h2>
+        <pre>{html.escape(' '.join(cmd))}</pre>
+        <h2>stdout</h2>
+        <pre>{html.escape(result.stdout)}</pre>
+        <h2>stderr</h2>
+        <pre>{html.escape(result.stderr)}</pre>
+        <p><a href='/app'>Back to index</a></p>
+        """
+        return Response(body, mimetype='text/html'), (200 if ok else 500)
+    except FileNotFoundError:
+        return Response("pi-label-printer.py not found", mimetype='text/plain'), 500
+    except Exception as e:
+        return Response(str(e), mimetype='text/plain'), 500
 
 
 if __name__ == "__main__":
