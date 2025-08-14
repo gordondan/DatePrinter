@@ -850,47 +850,8 @@ if __name__ == "__main__":
     logger.log("Configuration loaded successfully")
     
     # Step 1: Get printer selection
-    selected_printer = None
+    selected_printer = "RW402B"
     
-    # If we have a default and not forcing list, try to use it
-    if config['default_printer'] and not args.list:
-        # Get all printers to verify default still exists
-        printers = list_printers()
-        printer_names = [p[2] for p in printers]
-        if config['default_printer'] in printer_names:
-            selected_printer = config['default_printer']
-            print(f"Using default printer: {selected_printer}")
-            logger.log(f"Using default printer: {selected_printer}")
-        else:
-            print(f"Default printer '{config['default_printer']}' not found.")
-            logger.log(f"Default printer '{config['default_printer']}' not found")
-            config['default_printer'] = None
-    
-    # If no valid default or forcing list, show selection menu
-    if not selected_printer:
-        printers = list_printers()
-        
-        if not printers:
-            print("No printers found!")
-            exit(1)
-        while True:
-            try:
-                selection = input("\nEnter the number of the printer you want to use: ")
-                selection_num = int(selection)
-                if 1 <= selection_num <= len(printers):
-                    selected_printer = printers[selection_num - 1][2]
-                    print(f"Selected printer: {selected_printer}")
-                    
-                    # Save as new default
-                    config["default_printer"] = selected_printer
-                    save_config(config)
-                    print(f"Saved '{selected_printer}' as default printer.")
-                    break
-                else:
-                    print(f"Please enter a number between 1 and {len(printers)}")
-            except ValueError:
-                print("Please enter a valid number")
-
     # Get printer-specific configuration
     printer_config = get_printer_config(config, selected_printer)
     
