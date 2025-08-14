@@ -1,0 +1,19 @@
+{
+  "default_printer": "Microsoft Print to PDF",
+  "font_path": "C:\\Windows\\Fonts\\arial.ttf",
+  "output_folder": "generated_dice_wrappers",
+  "default_dice_size_mm": 16,
+  "max_retries": 3,
+  "wait_between_tries": 2,
+  "windows_device_caps": {
+    "PHYSICALWIDTH": 110,
+    "PHYSICALHEIGHT": 111,
+    "LOGPIXELSX": 88,
+    "LOGPIXELSY": 90,
+    "HORZRES": 8,
+    "VERTRES": 10,
+    "PHYSICALOFFSETX": 112,
+    "PHYSICALOFFSETY": 113
+  },
+  "printers": {}
+}

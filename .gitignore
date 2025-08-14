@@ -9,10 +9,6 @@ venv/
 ENV/
 
 # Configuration
-printer-config.json
-DatePrinter/printer-config.json
-MachineReadableDice/dice-config.json
-DiceWrapper/wrapper-config.json
 .env
 
 # Test images
