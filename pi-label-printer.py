@@ -765,13 +765,8 @@ def generate_label_image(date_str, date_obj, config, printer_config, message=Non
 
 def print_label(image, printer_name, config, printer_config):
     """
-    On Windows: use the existing GDI path.
     On Linux/Pi: send the PIL image to RW402B over BLE using TSPL.
     """
-    # ---- Windows path (now in windows_printer.py) ----
-    if WIN_AVAILABLE:
-        from windows_printer import print_label_windows
-        return print_label_windows(image, printer_name, config, printer_config)
 
     # ---- Linux/Pi BLE path ----
     if RW402BPrinter is None:
