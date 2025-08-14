@@ -7,8 +7,6 @@ import argparse
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
-# Windows-specific logic is now in windows_printer.py
-from windows_printer import WIN_AVAILABLE, list_printers
 
 from logger import create_logger
 
