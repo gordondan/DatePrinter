@@ -1,7 +1,7 @@
 {
   "default_printer": "RW402B",
   "date_format": "%B %d, %Y",
-  "font_path": "C:/Windows/Fonts/arial.ttf",
+  "font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
   "max_retries": 6,
   "wait_between_tries": 5,
   "pause_between_labels": 1,
@@ -24,14 +24,6 @@
     "December": 0.14
   },
   "printers": {
-    "Munbyn RW402B(Bluetooth)": {
-      "bluetooth_device_name": "RW402B-20B0",
-      "label_width_in": 2.25,
-      "label_height_in": 1.25,
-      "dpi": 203,
-      "bottom_margin": 15,
-      "bluetooth_wait_time": 3
-    },
     "RW402B": {
       "label_width_in": 2.25,
       "label_height_in": 1.25,
