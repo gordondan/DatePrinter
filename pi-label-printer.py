@@ -5,18 +5,10 @@ import os
 import sys
 import argparse
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
 
-# Optional Windows-only imports
-WIN_AVAILABLE = False
-try:
-    from PIL import ImageWin
-    import win32print
-    import win32ui
-    import win32con
-    WIN_AVAILABLE = True
-except Exception:
-    pass
+from PIL import Image, ImageDraw, ImageFont
+# Windows-specific logic is now in windows_printer.py
+from windows_printer import WIN_AVAILABLE, list_printers
 
 from logger import create_logger
 
@@ -106,12 +98,7 @@ def get_printer_config(config, printer_name):
         }
     return config["printers"][printer_name]
 
-def list_printers():
-    print("Available Printers:")
-    printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
-    for i, printer in enumerate(printers):
-        print(f"{i+1}: {printer[2]}")
-    return printers
+
 
 def wrap_text_to_fit(text, font, draw, max_width):
     """
@@ -781,84 +768,10 @@ def print_label(image, printer_name, config, printer_config):
     On Windows: use the existing GDI path.
     On Linux/Pi: send the PIL image to RW402B over BLE using TSPL.
     """
-    # ---- Windows path (unchanged from your code) ----
+    # ---- Windows path (now in windows_printer.py) ----
     if WIN_AVAILABLE:
-        width_px, height_px = image.size
-        try:
-            hDC = win32ui.CreateDC()
-            hDC.CreatePrinterDC(printer_name)
-
-            caps = config.get('windows_device_caps', {})
-            printer_width  = hDC.GetDeviceCaps(caps.get('PHYSICALWIDTH', 110))
-            printer_height = hDC.GetDeviceCaps(caps.get('PHYSICALHEIGHT', 111))
-            printer_dpi_x  = hDC.GetDeviceCaps(caps.get('LOGPIXELSX', 88))
-            printer_dpi_y  = hDC.GetDeviceCaps(caps.get('LOGPIXELSY', 90))
-            printable_width  = hDC.GetDeviceCaps(caps.get('HORZRES', 8))
-            printable_height = hDC.GetDeviceCaps(caps.get('VERTRES', 10))
-            offset_x = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETX', 112))
-            offset_y = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETY', 113))
-
-            print(f"\n=== Printer Info ===")
-            print(f"Printer DPI: {printer_dpi_x}x{printer_dpi_y}")
-            print(f"Physical size: {printer_width}x{printer_height} device units")
-            print(f"Printable area: {printable_width}x{printable_height} pixels")
-            print(f"Margins: left={offset_x}, top={offset_y} device units")
-            print(f"Label should print from x={offset_x} to x={offset_x + width_px}")
-
-            hDC.StartDoc('Label')
-            hDC.StartPage()
-            hDC.SetMapMode(win32con.MM_TEXT)
-
-            dib = ImageWin.Dib(image)
-
-            auto_center_offset = 0
-            if printable_width > width_px:
-                auto_center_offset = (printable_width - width_px) // 2
-                print(f"Printable width ({printable_width}) > Image width ({width_px}); "
-                      f"auto-centering offset: {auto_center_offset}px")
-
-            positioning_mode = printer_config.get('positioning_mode', 'auto')
-            if positioning_mode == 'auto':
-                h_offset = auto_center_offset if printable_width > width_px else offset_x
-            elif positioning_mode == 'physical_offset':
-                h_offset = offset_x
-            elif positioning_mode == 'center':
-                h_offset = auto_center_offset
-            elif positioning_mode == 'manual':
-                h_offset = printer_config.get('horizontal_offset', 0)
-            else:
-                h_offset = offset_x
-
-            additional_offset = printer_config.get('horizontal_offset', 0)
-            if additional_offset != 0 and positioning_mode != 'manual':
-                h_offset += additional_offset
-
-            total_offset = h_offset
-
-            dib.draw(hDC.GetHandleOutput(), (total_offset, 0, total_offset + width_px, height_px))
-            print(f"Drawing at ({total_offset}, 0, {total_offset + width_px}, {height_px})")
-
-            hDC.EndPage()
-            hDC.EndDoc()
-
-            try:
-                ph = win32print.OpenPrinter(printer_name)
-                win32print.FlushPrinter(ph)
-                win32print.ClosePrinter(ph)
-                print("Printer job flushed to device")
-            except Exception as flush_error:
-                print(f"Warning: Could not flush printer job: {flush_error}")
-
-            hDC.DeleteDC()
-            print(f"Label sent to printer: {printer_name}")
-            print(f"Image size: {width_px}x{height_px} @ {printer_config['dpi']} DPI")
-            return True
-
-        except Exception as e:
-            print(f"Printing failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        from windows_printer import print_label_windows
+        return print_label_windows(image, printer_name, config, printer_config)
 
     # ---- Linux/Pi BLE path ----
     if RW402BPrinter is None:
@@ -905,130 +818,7 @@ def print_label(image, printer_name, config, printer_config):
         traceback.print_exc()
         return False
 
-    width_px, height_px = image.size
-    try:
-        hDC = win32ui.CreateDC()
-        hDC.CreatePrinterDC(printer_name)
-        
-        # Get device capability indices from config
-        caps = config.get('windows_device_caps', {})
-        
-        # Query printer capabilities using Windows GetDeviceCaps
-        # These return the ACTUAL values (not the index constants)
-        printer_width = hDC.GetDeviceCaps(caps.get('PHYSICALWIDTH', 110))     # Full paper width
-        printer_height = hDC.GetDeviceCaps(caps.get('PHYSICALHEIGHT', 111))   # Full paper height
-        printer_dpi_x = hDC.GetDeviceCaps(caps.get('LOGPIXELSX', 88))         # Horizontal DPI
-        printer_dpi_y = hDC.GetDeviceCaps(caps.get('LOGPIXELSY', 90))         # Vertical DPI
-        printable_width = hDC.GetDeviceCaps(caps.get('HORZRES', 8))           # Printable width
-        printable_height = hDC.GetDeviceCaps(caps.get('VERTRES', 10))         # Printable height
-        offset_x = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETX', 112))        # Left margin
-        offset_y = hDC.GetDeviceCaps(caps.get('PHYSICALOFFSETY', 113))        # Top margin
-        
-        print(f"\n=== Printer Info ===")
-        print(f"Printer DPI: {printer_dpi_x}x{printer_dpi_y}")
-        print(f"Physical size: {printer_width}x{printer_height} device units")
-        print(f"Printable area: {printable_width}x{printable_height} pixels")
-        print(f"Margins: left={offset_x}, top={offset_y} device units")
-        print(f"Label should print from x={offset_x} to x={offset_x + width_px}")
-        
-        # Example: For a 2.25"×1.25" label at 203 DPI:
-        # - printer_dpi_x/y = 203
-        # - printable_width/height = 457×254 pixels (2.25"×1.25" × 203 DPI)
-        # - The indices (8,10,88,etc) are just lookups - NOT the actual dimensions
-        
-        hDC.StartDoc('Label')
-        hDC.StartPage()
-        
-        # Set mapping mode to match pixels 1:1
-        hDC.SetMapMode(win32con.MM_TEXT)
-        
-        # Create the DIB from our image
-        dib = ImageWin.Dib(image)
-        
-        # Calculate positioning for the Munbyn printer
-        # The printer might be centering labels within its printable area
-        
-        # Check if printable area is wider than our label
-        if printable_width > width_px:
-            # The printer has a wider printable area than our label
-            # It might be expecting us to center the content
-            auto_center_offset = (printable_width - width_px) // 2
-            print(f"Printable width ({printable_width}) > Image width ({width_px})")
-            print(f"Auto-centering offset would be: {auto_center_offset}px")
-        else:
-            auto_center_offset = 0
-        
-        # Try different positioning strategies based on config
-        positioning_mode = printer_config.get('positioning_mode', 'auto')
-        
-        if positioning_mode == 'auto':
-            # Try to auto-detect best positioning
-            if printable_width > width_px:
-                # Center in printable area
-                h_offset = auto_center_offset
-                print(f"Using auto-center mode: offset={h_offset}px")
-            else:
-                # Use physical offset
-                h_offset = offset_x
-                print(f"Using physical offset mode: offset={h_offset}px")
-        elif positioning_mode == 'physical_offset':
-            # Use only the physical offset
-            h_offset = offset_x
-            print(f"Using physical offset only: {h_offset}px")
-        elif positioning_mode == 'center':
-            # Force centering in printable area
-            h_offset = auto_center_offset
-            print(f"Using center mode: {h_offset}px")
-        elif positioning_mode == 'manual':
-            # Use only manual offset
-            h_offset = printer_config.get('horizontal_offset', 0)
-            print(f"Using manual offset: {h_offset}px")
-        else:
-            # Default to physical offset
-            h_offset = offset_x
-            print(f"Unknown positioning mode, using physical offset: {h_offset}px")
-        
-        # Add any additional configured offset
-        additional_offset = printer_config.get('horizontal_offset', 0)
-        if additional_offset != 0 and positioning_mode != 'manual':
-            h_offset += additional_offset
-            print(f"Added additional offset: {additional_offset}px")
-        
-        total_offset = h_offset
-        
-        # Draw the image with calculated offset
-        dib.draw(hDC.GetHandleOutput(), 
-                (total_offset, 0, total_offset + width_px, height_px))
-        
-        print(f"Drawing at position ({total_offset}, 0, {total_offset + width_px}, {height_px})")
-        print(f"  Printer physical offset: {offset_x} device units")
-        print(f"  Additional configured offset: {additional_offset}px")
-        print(f"  Total horizontal offset: {total_offset} device units")
-        
-        hDC.EndPage()
-        hDC.EndDoc()
-        
-        # Force the printer to process the job immediately
-        try:
-            import win32print
-            printer_handle = win32print.OpenPrinter(printer_name)
-            win32print.FlushPrinter(printer_handle)
-            win32print.ClosePrinter(printer_handle)
-            print("Printer job flushed to device")
-        except Exception as flush_error:
-            print(f"Warning: Could not flush printer job: {flush_error}")
-        
-        hDC.DeleteDC()
-        print(f"Label sent to printer: {printer_name}")
-        print(f"Image size: {width_px}x{height_px} pixels (created at {printer_config['dpi']} DPI)")
-        print(f"Drew at coordinates: (0, 0, {width_px}, {height_px})")
-        print(f"Expected physical size: {printer_config['label_width_in']}x{printer_config['label_height_in']} inches")
-        return True
-    except Exception as e:
-        print(f"Printing failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+
 
 if __name__ == "__main__":
     # Initialize logger
@@ -1072,9 +862,8 @@ if __name__ == "__main__":
     # If we have a default and not forcing list, try to use it
     if config['default_printer'] and not args.list:
         # Get all printers to verify default still exists
-        all_printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
-        printer_names = [p[2] for p in all_printers]
-        
+        printers = list_printers()
+        printer_names = [p[2] for p in printers]
         if config['default_printer'] in printer_names:
             selected_printer = config['default_printer']
             print(f"Using default printer: {selected_printer}")
