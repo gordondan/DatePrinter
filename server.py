@@ -208,7 +208,7 @@ def app_index():
 def app_date_print():
     """Run pi-label-printer.py with default options (today's date) and show result."""
     script_path = os.path.join(os.path.dirname(__file__), 'pi-label-printer.py')
-    cmd = [sys.executable or 'python3', script_path]
+    cmd = [sys.executable or 'python3', script_path, '-o']
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         ok = result.returncode == 0
