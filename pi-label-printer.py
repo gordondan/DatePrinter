@@ -17,13 +17,26 @@ except Exception as e:
     # You can keep running in preview mode without this on Windows
     RW402BPrinter = None
 
+
 # --- CONFIGURATION ---
-CONFIG_FILE = "config/printer-config.json"
+
+import platform
+
+def get_config_file():
+    """Return the appropriate config file path based on OS."""
+    system = platform.system().lower()
+    if system == "windows":
+        return "config/printer-config-windows.json"
+    elif system == "linux":
+        return "config/printer-config-linux.json"
+    else:
+        return "config/printer-config.json"
 
 def load_config():
-    """Load configuration from JSON file, fail if missing"""
-    if not os.path.exists(CONFIG_FILE):
-        print(f"\nERROR: Configuration file '{CONFIG_FILE}' not found!")
+    """Load configuration from the appropriate JSON file based on OS."""
+    config_file = get_config_file()
+    if not os.path.exists(config_file):
+        print(f"\nERROR: Configuration file '{config_file}' not found!")
         print("\nPlease create a printer-config.json file with the following structure:")
         print(json.dumps({
             "default_printer": "Your Printer Name",
@@ -60,22 +73,23 @@ def load_config():
         }, indent=2))
         print("\nSee README.md for detailed configuration documentation.")
         sys.exit(1)
-    
+
     # Load the config file
     try:
-        with open(CONFIG_FILE, 'r') as f:
+        with open(config_file, 'r') as f:
             config = json.load(f)
         return config
     except json.JSONDecodeError as e:
-        print(f"\nERROR: Invalid JSON in {CONFIG_FILE}: {e}")
+        print(f"\nERROR: Invalid JSON in {config_file}: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"\nERROR: Failed to load {CONFIG_FILE}: {e}")
+        print(f"\nERROR: Failed to load {config_file}: {e}")
         sys.exit(1)
 
 def save_config(config):
-    """Save configuration to JSON file"""
-    with open(CONFIG_FILE, 'w') as f:
+    """Save configuration to the appropriate JSON file based on OS."""
+    config_file = get_config_file()
+    with open(config_file, 'w') as f:
         json.dump(config, f, indent=2)
 
 def get_printer_config(config, printer_name):
@@ -682,8 +696,7 @@ def reconnect_bluetooth_device(device_name):
     On Raspberry Pi, BLE connection is handled automatically by the BLE routines in rw402b_ble/printer.py.
     No manual reconnect is needed; a new connection will be attempted each print.
     """
-    print(f"No manual Bluetooth reconnect needed on Raspberry Pi. BLE connection is handled by the printer library.")
-
+    
 def generate_label_image(date_str, date_obj, config, printer_config, message=None, border_message=None, side_border=None, show_date=False, image_path=None, logger=None):
     """Generate a label image with dates and/or message."""
     # Create image based on printer-specific settings

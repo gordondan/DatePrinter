@@ -1,9 +1,11 @@
-from flask import Flask, jsonify, request, Response, send_from_directory
+from flask import Flask, jsonify, request, Response, send_from_directory, send_file
 import subprocess
 import sys
 import os
 import html
 import re
+import time
+from pathlib import Path
 from datetime import datetime
 
 
@@ -98,6 +100,73 @@ def pi_label_form():
     return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
 
 
+# --- Helpers ---
+
+def _find_latest_preview():
+    """Search for the newest label_preview.png under logs/ and project root."""
+    base_dir = Path(os.path.dirname(__file__))
+    candidates = []
+    root_preview = base_dir / "label_preview.png"
+    if root_preview.is_file():
+        candidates.append(root_preview)
+
+    logs_dir = base_dir / "logs"
+    if logs_dir.is_dir():
+        try:
+            for p in logs_dir.rglob("label_preview.png"):
+                if p.is_file():
+                    candidates.append(p)
+        except Exception:
+            pass
+
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _find_latest_metrics():
+    """If a metrics.json exists next to the latest preview, load and return it."""
+    p = _find_latest_preview()
+    if not p:
+        return None
+    metrics_path = p.with_name('metrics.json')
+    if metrics_path.is_file():
+        try:
+            import json
+            with open(metrics_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
+
+
+def _parse_metrics_from_stdout(stdout: str):
+    """Look for a line like 'METRICS: {json}' and parse it."""
+    try:
+        for line in stdout.splitlines():
+            if line.startswith('METRICS:'):
+                import json
+                payload = line.partition('METRICS:')[2].strip()
+                return json.loads(payload)
+    except Exception:
+        pass
+    return None
+
+
+@app.route('/preview.png', methods=['GET'])
+def latest_preview_png():
+    """Serve the most recent label preview PNG."""
+    p = _find_latest_preview()
+    if not p:
+        return Response("Preview not found", mimetype='text/plain'), 404
+    # Add a cache-busting header-friendly timestamp
+    resp = send_file(str(p), mimetype='image/png')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
+
 def build_command_from_payload(payload: dict):
     """Build command list for pi-label-printer.py based on provided payload."""
     script_path = os.path.join(os.path.dirname(__file__), 'pi-label-printer.py')
@@ -183,18 +252,32 @@ def post_pi_label_print():
     cmd = build_command_from_payload(data)
 
     try:
+        t0 = time.perf_counter()
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             check=False,
         )
+        elapsed_sec = time.perf_counter() - t0
+
+        # Find the latest preview if generated
+        preview_path = _find_latest_preview()
+        preview_url = None
+        if preview_path:
+            ts = int(preview_path.stat().st_mtime)
+            preview_url = f"/preview.png?ts={ts}"
+
+        metrics = _parse_metrics_from_stdout(result.stdout) or _find_latest_metrics()
 
         response = {
             'command': cmd,
             'returncode': result.returncode,
             'stdout': result.stdout,
             'stderr': result.stderr,
+            'elapsed_sec': round(elapsed_sec, 3),
+            'preview_url': preview_url,
+            'metrics': metrics,
         }
         status = 200 if result.returncode == 0 else 500
         return jsonify(response), status
@@ -217,7 +300,15 @@ def app_date_print():
     script_path = os.path.join(os.path.dirname(__file__), 'pi-label-printer.py')
     cmd = [sys.executable or 'python3', script_path, '-o']
     try:
+        t0 = time.perf_counter()
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        elapsed_sec = time.perf_counter() - t0
+        # Discover preview if available
+        preview_path = _find_latest_preview()
+        preview_html = ""
+        if preview_path:
+            ts = int(preview_path.stat().st_mtime)
+            preview_html = f"<h2>Preview</h2><img src='/preview.png?ts={ts}' alt='label preview' style='border:1px solid #ddd; max-width:600px;' />"
         ok = result.returncode == 0
         status = 'OK' if ok else 'Error'
         color = '#0a7d29' if ok else '#b00020'
@@ -232,13 +323,14 @@ def app_date_print():
           a {{ color: #0366d6; text-decoration: none; }}
         </style>
         <h1>Print Today's Date</h1>
-        <div class='status'>{status}: ran pi-label-printer.py</div>
+        <div class='status'>{status}: ran pi-label-printer.py (elapsed {elapsed_sec:.3f}s)</div>
         <h2>Command</h2>
         <pre>{html.escape(' '.join(cmd))}</pre>
         <h2>stdout</h2>
         <pre>{html.escape(result.stdout)}</pre>
         <h2>stderr</h2>
         <pre>{html.escape(result.stderr)}</pre>
+        {preview_html}
         <p><a href='/app'>Back to index</a></p>
         """
         return Response(body, mimetype='text/html'), (200 if ok else 500)
