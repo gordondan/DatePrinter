@@ -2,23 +2,29 @@
 <meta charset="utf-8" />
 <title>Pi Label Printer</title>
 <style>
-  :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; }
+  :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; --focus:#0366d6; --focus-bg:#e8f4fd; }
   body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; margin: 24px; }
   h1 { margin: 0 0 8px; }
   .muted { color: var(--muted); margin-bottom: 18px; }
   label { display: block; margin: 8px 0 4px; }
-  input[type=text], input[type=number], input[type=date] { width: 360px; padding: 8px; }
+  input[type=text], input[type=number], input[type=date] { width: 360px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus { outline: 2px solid var(--focus); border-color: var(--focus); }
+  input[type=checkbox] { margin-right: 8px; }
+  input[type=checkbox]:focus { outline: 2px solid var(--focus); }
   .row { margin-bottom: 12px; }
-  button { padding: 10px 14px; }
+  button { padding: 10px 14px; border: 1px solid var(--focus); background: var(--focus); color: white; border-radius: 4px; cursor: pointer; }
+  button:hover, button:focus { background: #025aa5; outline: 2px solid var(--focus); }
+  button:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
   pre { background: var(--bg); padding: 12px; border-radius: 6px; overflow: auto; max-width: 900px; }
   .status { margin-top: 12px; font-weight: 600; }
   .ok { color: var(--ok); }
   .err { color: var(--err); }
   .links { margin: 16px 0 24px; }
-  a { color: #0366d6; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  a { color: var(--focus); text-decoration: none; padding: 4px 8px; border-radius: 4px; }
+  a:hover, a:focus { text-decoration: underline; background: var(--focus-bg); outline: 2px solid var(--focus); }
   #previewImage { border: 1px solid #ddd; max-width: 600px; display: none; }
   #timing { margin-top: 8px; color: var(--muted); }
+  .navigation-help { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 11px; z-index: 1000; }
 </style>
 <h1>Pi Label Printer</h1>
 <div class="muted">Submit options to run pi-label-printer.py on the server, or use the quick link to print today's date.</div>
@@ -55,6 +61,10 @@
 <h2>Preview</h2>
 <img id="previewImage" alt="label preview" />
 <div id="timing"></div>
+
+<div class="navigation-help">
+  Tab: Navigate \u2022 Enter: Submit \u2022 Space: Toggle Checkboxes
+</div>
 
 <script>
 const form = document.getElementById('labelForm');

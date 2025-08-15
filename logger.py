@@ -171,6 +171,18 @@ class LabelPrinterLogger:
         try:
             image.save(preview_path)
             self.log(f"Preview saved: {preview_path}")
+            # Also mirror into past-images using the same folder structure under logs
+            try:
+                # Compute the relative session subpath under the base logs directory
+                rel = self.current_log_dir.relative_to(self.base_dir)
+                archive_root = self.base_dir.parent / "past-images"
+                archive_dir = archive_root / rel
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                archive_path = archive_dir / filename
+                image.save(archive_path)
+                self.log(f"Preview archived: {archive_path}")
+            except Exception as e:
+                self.log(f"WARNING: Could not mirror preview to past-images: {e}")
             return preview_path
         except Exception as e:
             self.log_error(f"Could not save preview to {preview_path}", e)

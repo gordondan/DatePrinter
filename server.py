@@ -148,6 +148,87 @@ def _find_latest_metrics():
     return None
 
 
+def _save_request_data(preview_path: Path, request_data: dict):
+    """Save the original request data next to the generated preview for template reprinting."""
+    try:
+        import json
+        request_path = preview_path.with_name('request.json')
+        # Create a normalized request for deduplication
+        normalized_request = _normalize_request_for_template_matching(request_data)
+        
+        with open(request_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'original_request': request_data,
+                'normalized_template': normalized_request,
+                'timestamp': datetime.now().isoformat()
+            }, f, indent=2)
+    except Exception:
+        pass  # Don't fail the main operation if we can't save request data
+
+
+def _load_request_data(preview_path: Path):
+    """Load the original request data for a preview if available."""
+    try:
+        import json
+        request_path = preview_path.with_name('request.json')
+        if request_path.is_file():
+            with open(request_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('original_request'), data.get('normalized_template')
+    except Exception:
+        pass
+    return None, None
+
+
+def _normalize_request_for_template_matching(request_data: dict) -> dict:
+    """Create a normalized request for template matching."""
+    # Remove fields that don't affect the template
+    exclude_keys = {'preview_only', 'list', 'count'}
+    normalized = {}
+    
+    for k, v in request_data.items():
+        if k in exclude_keys:
+            continue
+        # Only include non-empty values
+        if v is not None and v != '' and v != False:
+            normalized[k] = v
+    
+    return normalized
+
+
+def _find_existing_template_match(new_request_data: dict) -> Path | None:
+    """Find existing label with the same template (request pattern), if any."""
+    try:
+        import json
+        # Normalize the new request
+        normalized_new = _normalize_request_for_template_matching(new_request_data)
+        
+        # Search existing labels
+        base = _past_images_dir()
+        if not base.is_dir():
+            base = _logs_dir()
+        if not base.is_dir():
+            return None
+            
+        for p in base.rglob("request.json"):
+            if "deleted" in p.parts:
+                continue
+            try:
+                with open(p, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    existing_template = data.get('normalized_template', {})
+                    if existing_template == normalized_new:
+                        # Found a match, return the preview path
+                        preview_path = p.with_name('label_preview.png')
+                        if preview_path.is_file():
+                            return preview_path
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
 def _parse_metrics_from_stdout(stdout: str):
     """Look for a line like 'METRICS: {json}' and parse it."""
     try:
@@ -165,8 +246,15 @@ def _logs_dir() -> Path:
     return Path(os.path.dirname(__file__)) / "logs"
 
 
+def _past_images_dir() -> Path:
+    return Path(os.path.dirname(__file__)) / "past-images"
+
+
 def _list_recent_previews(limit: int = 100):
-    base = _logs_dir()
+    # Prefer past-images as the canonical recent source; fallback to logs
+    base = _past_images_dir()
+    if not base.is_dir():
+        base = _logs_dir()
     items = []
     if not base.is_dir():
         return []
@@ -175,6 +263,9 @@ def _list_recent_previews(limit: int = 100):
             try:
                 stat = p.stat()
             except Exception:
+                continue
+            # Skip files in deleted subdirectory
+            if "deleted" in p.parts:
                 continue
             rel = p.relative_to(Path(os.path.dirname(__file__)))
             items.append({
@@ -190,12 +281,13 @@ def _list_recent_previews(limit: int = 100):
 
 
 def _safe_path_from_query(rel_path: str) -> Path | None:
-    """Ensure requested path is inside the workspace and under logs/.*"""
+    """Ensure requested path is inside the workspace and under past-images/.* or logs/.*"""
     try:
         base = Path(os.path.dirname(__file__))
         target = (base / rel_path).resolve()
         logs = (_logs_dir()).resolve()
-        if not str(target).startswith(str(logs)):
+        past = (_past_images_dir()).resolve()
+        if not (str(target).startswith(str(logs)) or str(target).startswith(str(past))):
             return None
         if not target.is_file():
             return None
@@ -275,7 +367,7 @@ def preview_by_path():
 
 @app.route('/api/reprint', methods=['POST'])
 def api_reprint():
-    """Reprint a saved preview PNG via BLE, best effort."""
+    """Reprint a saved label by regenerating it from the original request data with current dynamic values."""
     data = request.get_json(silent=True) or {}
     rel = data.get('path')
     if not rel:
@@ -284,8 +376,61 @@ def api_reprint():
     if not p:
         return jsonify({'error': 'Invalid path'}), 400
 
+    # Try to load the original request data for template reprinting
+    original_request, _ = _load_request_data(p)
+    if original_request:
+        # Regenerate the label using the original template with current dynamic values
+        try:
+            # Update dynamic fields like date to current values
+            updated_request = original_request.copy()
+            # If the original request had date template markers but not a specific date, use today
+            if 'message' in updated_request and updated_request['message'] and '{{date}}' in str(updated_request['message']):
+                # Template has date placeholder - will be filled by the label generator
+                pass  # Keep the template as-is
+            elif 'date' not in updated_request or not updated_request['date']:
+                # No specific date was provided, don't set one to use today
+                updated_request.pop('date', None)
+            
+            # Set preview_only to False to ensure actual printing
+            updated_request['preview_only'] = False
+            
+            # Validate the updated request
+            ok, errors = validate_payload(updated_request)
+            if not ok:
+                return jsonify({'error': f'Invalid original request data: {errors}'}), 400
+            
+            cmd = build_command_from_payload(updated_request)
+            
+            t0 = time.perf_counter()
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            elapsed_sec = time.perf_counter() - t0
+            
+            if result.returncode == 0:
+                return jsonify({
+                    'ok': True, 
+                    'elapsed_sec': round(elapsed_sec, 3),
+                    'method': 'template_regeneration',
+                    'stdout': result.stdout.strip() if result.stdout else ''
+                })
+            else:
+                # Fall back to direct image printing if regeneration failed
+                return jsonify({
+                    'error': f'Template regeneration failed: {result.stderr}',
+                    'fallback_reason': 'Falling back to direct image printing'
+                }), 400
+                
+        except Exception as e:
+            # Fall back to direct image printing if template processing failed
+            pass
+    
+    # Fallback: Direct image printing (original behavior)
     if RW402BPrinter is None:
-        return jsonify({'error': 'BLE printer module not available on this host'}), 500
+        return jsonify({'error': 'BLE printer module not available on this host and no template data found'}), 500
 
     cfg, pcfg = _load_printer_config()
     if pcfg is None:
@@ -325,7 +470,65 @@ def api_reprint():
             x=0, y=0, mode=0
         )
         elapsed_sec = time.perf_counter() - t0
-        return jsonify({'ok': True, 'elapsed_sec': round(elapsed_sec, 3)})
+        return jsonify({
+            'ok': True, 
+            'elapsed_sec': round(elapsed_sec, 3),
+            'method': 'direct_image_printing'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/delete', methods=['POST'])
+def api_delete():
+    """Move a past image to past-images/deleted/{same folder structure}."""
+    data = request.get_json(silent=True) or {}
+    rel = data.get('path')
+    if not rel:
+        return jsonify({'error': 'Missing path'}), 400
+    p = _safe_path_from_query(rel)
+    if not p:
+        return jsonify({'error': 'Invalid path'}), 400
+
+    base = Path(os.path.dirname(__file__))
+    try:
+        # Compute path relative to past-images root; if coming from logs, map logs/.. to past-images/..
+        past_root = _past_images_dir()
+        logs_root = _logs_dir()
+        if str(p).startswith(str(past_root.resolve())):
+            rel_to_root = p.resolve().relative_to(past_root.resolve())
+        elif str(p).startswith(str(logs_root.resolve())):
+            rel_to_root = p.resolve().relative_to(logs_root.resolve())
+        else:
+            return jsonify({'error': 'Path not under expected roots'}), 400
+
+        deleted_root = past_root / 'deleted'
+        dest_dir = deleted_root / rel_to_root.parent
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_path = dest_dir / p.name
+
+        # Move the file
+        p.rename(dest_path)
+        
+        # Also move the associated request.json file if it exists
+        request_file = p.with_name('request.json')
+        if request_file.is_file():
+            try:
+                request_dest = dest_path.with_name('request.json')
+                request_file.rename(request_dest)
+            except Exception:
+                pass  # Don't fail if we can't move the request file
+        
+        # Also move metrics.json if it exists
+        metrics_file = p.with_name('metrics.json')
+        if metrics_file.is_file():
+            try:
+                metrics_dest = dest_path.with_name('metrics.json')
+                metrics_file.rename(metrics_dest)
+            except Exception:
+                pass  # Don't fail if we can't move the metrics file
+        
+        return jsonify({'ok': True, 'deleted_to': str(dest_path.relative_to(base)).replace('\\','/')})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -426,6 +629,32 @@ def post_pi_label_print():
     if not ok:
         return jsonify({'errors': errors}), 400
 
+    # Check if we already have this template - if so, update existing instead of creating duplicate
+    existing_match = _find_existing_template_match(data)
+    if existing_match:
+        # Update the existing template with new request, preserving the existing image
+        _save_request_data(existing_match, data)
+        # Touch the file to update its timestamp so it appears at the top of recent
+        import os
+        os.utime(existing_match, None)
+        ts = int(existing_match.stat().st_mtime)
+        preview_url = f"/preview.png?ts={ts}"
+        
+        # Log the template reuse for debugging
+        normalized = _normalize_request_for_template_matching(data)
+        print(f"DEBUG: Template reused for request: {normalized}")
+        
+        return jsonify({
+            'command': [],
+            'returncode': 0,
+            'stdout': f'Using existing template: {existing_match.name} (normalized: {normalized})',
+            'stderr': '',
+            'elapsed_sec': 0.001,
+            'preview_url': preview_url,
+            'metrics': None,
+            'template_reused': True
+        }), 200
+
     cmd = build_command_from_payload(data)
 
     try:
@@ -444,6 +673,8 @@ def post_pi_label_print():
         if preview_path:
             ts = int(preview_path.stat().st_mtime)
             preview_url = f"/preview.png?ts={ts}"
+            # Save the request data for template reprinting
+            _save_request_data(preview_path, data)
 
         metrics = _parse_metrics_from_stdout(result.stdout) or _find_latest_metrics()
 
@@ -455,6 +686,7 @@ def post_pi_label_print():
             'elapsed_sec': round(elapsed_sec, 3),
             'preview_url': preview_url,
             'metrics': metrics,
+            'template_reused': False
         }
         status = 200 if result.returncode == 0 else 500
         return jsonify(response), status
