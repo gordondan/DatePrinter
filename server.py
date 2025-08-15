@@ -10,6 +10,13 @@ from datetime import datetime
 app = Flask(__name__)
 
 
+@app.route('/', methods=['GET'])
+@app.route('/index.html', methods=['GET'])
+def root_index():
+    """Serve the main UI at the root path for convenience."""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
+
+
 @app.route("/api/pi-label/options", methods=["GET"])
 def get_pi_label_options():
     """
