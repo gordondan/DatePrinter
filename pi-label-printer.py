@@ -18,7 +18,7 @@ except Exception as e:
     RW402BPrinter = None
 
 # --- CONFIGURATION ---
-CONFIG_FILE = "printer-config.json"
+CONFIG_FILE = "config/printer-config.json"
 
 def load_config():
     """Load configuration from JSON file, fail if missing"""
