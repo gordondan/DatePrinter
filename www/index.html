@@ -17,6 +17,8 @@
   .links { margin: 16px 0 24px; }
   a { color: #0366d6; text-decoration: none; }
   a:hover { text-decoration: underline; }
+  #previewImage { border: 1px solid #ddd; max-width: 600px; display: none; }
+  #timing { margin-top: 8px; color: var(--muted); }
 </style>
 <h1>Pi Label Printer</h1>
 <div class="muted">Submit options to run pi-label-printer.py on the server, or use the quick link to print today's date.</div>
@@ -29,6 +31,8 @@
   <a href="/app">Home</a>
   &nbsp;•&nbsp;
   <a href="/app/pi-label">Form only</a>
+  &nbsp;•&nbsp;
+  <a href="/recent">Recent</a>
   </div>
 
 <form id="labelForm">
@@ -48,10 +52,16 @@
 <h2>Result</h2>
 <pre id="result"></pre>
 
+<h2>Preview</h2>
+<img id="previewImage" alt="label preview" />
+<div id="timing"></div>
+
 <script>
 const form = document.getElementById('labelForm');
 const submitBtn = document.getElementById('submitBtn');
 const statusEl = document.getElementById('status');
+const previewImg = document.getElementById('previewImage');
+const timingEl = document.getElementById('timing');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = new FormData(form);
@@ -68,6 +78,8 @@ form.addEventListener('submit', async (e) => {
   };
   statusEl.textContent = '';
   statusEl.className = 'status';
+  timingEl.textContent = '';
+  previewImg.style.display = 'none';
   submitBtn.disabled = true;
   submitBtn.textContent = 'Submitting...';
   const res = await fetch('/api/pi-label/print', {
@@ -80,6 +92,18 @@ form.addEventListener('submit', async (e) => {
   document.getElementById('result').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
   statusEl.textContent = res.ok ? 'OK: Print command executed' : 'Error: See details below';
   statusEl.className = 'status ' + (res.ok ? 'ok' : 'err');
+
+  // Display elapsed time if provided
+  if (typeof body === 'object' && body && typeof body.elapsed_sec === 'number') {
+    timingEl.textContent = `Elapsed: ${body.elapsed_sec.toFixed(3)}s`;
+  }
+
+  // Show preview image if URL provided
+  if (typeof body === 'object' && body && body.preview_url) {
+    previewImg.src = body.preview_url;
+    previewImg.style.display = 'block';
+  }
+
   submitBtn.disabled = false;
   submitBtn.textContent = 'Submit';
 });

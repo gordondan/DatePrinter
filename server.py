@@ -7,6 +7,14 @@ import re
 import time
 from pathlib import Path
 from datetime import datetime
+from urllib.parse import quote, unquote
+from PIL import Image
+
+# Try to import BLE printer for direct reprint support
+try:
+    from rw402b_ble.printer import RW402BPrinter
+except Exception:  # noqa: E722
+    RW402BPrinter = None
 
 
 app = Flask(__name__)
@@ -153,6 +161,175 @@ def _parse_metrics_from_stdout(stdout: str):
     return None
 
 
+def _logs_dir() -> Path:
+    return Path(os.path.dirname(__file__)) / "logs"
+
+
+def _list_recent_previews(limit: int = 100):
+    base = _logs_dir()
+    items = []
+    if not base.is_dir():
+        return []
+    try:
+        for p in base.rglob("label_preview.png"):
+            try:
+                stat = p.stat()
+            except Exception:
+                continue
+            rel = p.relative_to(Path(os.path.dirname(__file__)))
+            items.append({
+                'path': str(rel).replace('\\', '/'),
+                'mtime_ts': int(stat.st_mtime),
+                'mtime_iso': datetime.fromtimestamp(stat.st_mtime).isoformat(timespec='seconds'),
+                'size': stat.st_size,
+            })
+        items.sort(key=lambda x: x['mtime_ts'], reverse=True)
+        return items[:limit]
+    except Exception:
+        return []
+
+
+def _safe_path_from_query(rel_path: str) -> Path | None:
+    """Ensure requested path is inside the workspace and under logs/.*"""
+    try:
+        base = Path(os.path.dirname(__file__))
+        target = (base / rel_path).resolve()
+        logs = (_logs_dir()).resolve()
+        if not str(target).startswith(str(logs)):
+            return None
+        if not target.is_file():
+            return None
+        return target
+    except Exception:
+        return None
+
+
+def _get_config_file_for_os() -> Path:
+    system = sys.platform.lower()
+    base = Path(os.path.dirname(__file__))
+    if system.startswith('win'):
+        return base / 'config' / 'printer-config-windows.json'
+    elif system.startswith('linux'):
+        return base / 'config' / 'printer-config-linux.json'
+    else:
+        return base / 'config' / 'printer-config.json'
+
+
+def _load_printer_config():
+    import json as _json
+    cfg_path = _get_config_file_for_os()
+    if not cfg_path.is_file():
+        return None, None
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            cfg = _json.load(f)
+        printer_name = 'RW402B'
+        printers = cfg.get('printers') or {}
+        pcfg = printers.get(printer_name) or {
+            'label_width_in': 2.25,
+            'label_height_in': 1.25,
+            'dpi': 203,
+            'gap_mm': 3.0,
+            'density': 8,
+            'speed': 4,
+            'direction': 1,
+            'invert': True,
+            'bluetooth_wait_time': 4.0,
+        }
+        return cfg, pcfg
+    except Exception:
+        return None, None
+
+
+@app.route('/api/recent', methods=['GET'])
+def api_recent():
+    """Return recent previews with metadata."""
+    try:
+        limit = int(request.args.get('limit', '100'))
+    except Exception:
+        limit = 100
+    items = _list_recent_previews(limit)
+    # attach image URLs
+    for it in items:
+        q = quote(it['path'])
+        it['image_url'] = f"/preview/file?path={q}&ts={it['mtime_ts']}"
+    return jsonify({'items': items})
+
+
+@app.route('/preview/file', methods=['GET'])
+def preview_by_path():
+    """Serve a specific preview by relative path (under logs directory)."""
+    rel = request.args.get('path')
+    if not rel:
+        return Response('Missing path', mimetype='text/plain'), 400
+    rel = unquote(rel)
+    p = _safe_path_from_query(rel)
+    if not p:
+        return Response('Invalid path', mimetype='text/plain'), 400
+    resp = send_file(str(p), mimetype='image/png')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
+
+@app.route('/api/reprint', methods=['POST'])
+def api_reprint():
+    """Reprint a saved preview PNG via BLE, best effort."""
+    data = request.get_json(silent=True) or {}
+    rel = data.get('path')
+    if not rel:
+        return jsonify({'error': 'Missing path'}), 400
+    p = _safe_path_from_query(rel)
+    if not p:
+        return jsonify({'error': 'Invalid path'}), 400
+
+    if RW402BPrinter is None:
+        return jsonify({'error': 'BLE printer module not available on this host'}), 500
+
+    cfg, pcfg = _load_printer_config()
+    if pcfg is None:
+        return jsonify({'error': 'Printer config not found'}), 500
+
+    try:
+        img = Image.open(p)
+    except Exception as e:
+        return jsonify({'error': f'Failed to open image: {e}'}), 500
+
+    # Pull printer settings
+    try:
+        dpi = int(pcfg.get('dpi', 203))
+        w_in = float(pcfg.get('label_width_in', 2.25))
+        h_in = float(pcfg.get('label_height_in', 1.25))
+        gap_mm = float(pcfg.get('gap_mm', 3.0))
+        density = int(pcfg.get('density', 8))
+        speed = int(pcfg.get('speed', 4))
+        direction = int(pcfg.get('direction', 1))
+        invert = bool(pcfg.get('invert', True))
+        ble_mac = pcfg.get('ble_mac') or None
+    except Exception as e:
+        return jsonify({'error': f'Invalid printer config: {e}'}), 500
+
+    try:
+        t0 = time.perf_counter()
+        pble = RW402BPrinter(addr=ble_mac, timeout=float(pcfg.get('bluetooth_wait_time', 4.0)),
+                              dpi=dpi, invert=invert)
+        pble.print_pil_image(
+            img,
+            label_w_mm=w_in * 25.4,
+            label_h_mm=h_in * 25.4,
+            gap_mm=gap_mm,
+            density=density,
+            speed=speed,
+            direction=direction,
+            x=0, y=0, mode=0
+        )
+        elapsed_sec = time.perf_counter() - t0
+        return jsonify({'ok': True, 'elapsed_sec': round(elapsed_sec, 3)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/preview.png', methods=['GET'])
 def latest_preview_png():
     """Serve the most recent label preview PNG."""
@@ -292,6 +469,12 @@ def post_pi_label_print():
 def app_index():
     """Serve the index HTML that includes the print form and links."""
     return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
+
+
+@app.route('/recent', methods=['GET'])
+def recent_page():
+    """Serve the recent labels gallery."""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "recent.html")
 
 
 @app.route('/app/date', methods=['GET'])

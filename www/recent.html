@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Recent Labels</title>
+<style>
+  :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; }
+  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; margin: 24px; }
+  h1 { margin: 0 0 12px; }
+  .muted { color: var(--muted); margin-bottom: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fff; }
+  .card img { width: 100%; height: auto; border: 1px solid #eee; }
+  .meta { font-size: 12px; color: var(--muted); margin: 8px 0; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  button { padding: 6px 10px; }
+  .status { margin-top: 4px; font-size: 12px; }
+  .ok { color: var(--ok); }
+  .err { color: var(--err); }
+</style>
+<h1>Recent Labels</h1>
+<div class="muted">Most recent previews from logs/. Click Reprint to send the label again.</div>
+<div class="row" style="margin-bottom:12px;">
+  <a href="/app">Home</a>
+</div>
+<div id="container" class="grid"></div>
+<script>
+async function fetchRecent() {
+  const res = await fetch('/api/recent');
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.items || [];
+}
+
+async function reprint(path, statusEl) {
+  statusEl.textContent = 'Reprinting…';
+  statusEl.className = 'status';
+  const res = await fetch('/api/reprint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path })
+  });
+  let body;
+  try { body = await res.json(); } catch { body = { error: 'Invalid response' }; }
+  if (res.ok && body.ok) {
+    statusEl.textContent = `OK (elapsed ${body.elapsed_sec.toFixed(3)}s)`;
+    statusEl.className = 'status ok';
+  } else {
+    statusEl.textContent = `Error: ${body.error || 'Unknown error'}`;
+    statusEl.className = 'status err';
+  }
+}
+
+function render(items) {
+  const c = document.getElementById('container');
+  c.innerHTML = '';
+  for (const it of items) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.src = it.image_url;
+    img.alt = 'preview';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `${it.mtime_iso} • ${it.size} bytes`;
+    const btn = document.createElement('button');
+    btn.textContent = 'Reprint';
+    const status = document.createElement('div');
+    status.className = 'status';
+    btn.onclick = () => reprint(it.path, status);
+    card.appendChild(img);
+    card.appendChild(meta);
+    card.appendChild(btn);
+    card.appendChild(status);
+    c.appendChild(card);
+  }
+}
+
+(async function init() {
+  const items = await fetchRecent();
+  render(items);
+})();
+</script>
