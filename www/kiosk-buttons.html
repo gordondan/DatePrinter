@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiosk Interface</title>
     <style>
-        /* --- 1. Basic Kiosk Styling --- */
+        /* --- 1. Basic Kiosk Styling (New Colors) --- */
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1e1e2f; /* A dark, modern background */
-            color: #fff;
-            /* Prevents text selection, common in kiosks */
-            user-select: none; 
+            background-color: #e9f5e9; /* Light lime green background */
+            color: #333; /* Darker text for better contrast on a light background */
+            user-select: none;
         }
 
-        /* Center the grid on the page */
+        /* Center the main content vertically */
         body {
             display: flex;
+            flex-direction: column; /* Stack grid and nav controls vertically */
             justify-content: center;
             align-items: center;
         }
@@ -27,61 +27,79 @@
         /* --- 2. Grid Layout for the Buttons --- */
         .kiosk-grid {
             display: grid;
-            /* Creates 4 equal-width columns */
             grid-template-columns: repeat(4, 1fr); 
-            /* Creates a gap between buttons */
             gap: 2rem; 
             padding: 2rem;
             max-width: 1200px;
             width: 100%;
         }
 
-        /* --- 3. Button Styling --- */
+        /* --- 3. Button Styling (New Colors) --- */
         .kiosk-button {
-            /* Makes the button a square */
             aspect-ratio: 1 / 1; 
-
-            /* Styling for the text and content */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-decoration: none;
-            color: #f0f0f0;
+            color: #ffffff; /* White text on blue button */
             font-size: 1.5rem;
             font-weight: bold;
             
-            /* Visuals for the button itself */
-            background: linear-gradient(145deg, #2a2a40, #222234);
+            background: #4169E1; /* Royal Blue */
             border-radius: 15px;
             
-            /* The "floating" or "relief" effect */
-            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.4), 
-                        -5px -5px 15px rgba(255, 255, 255, 0.05);
+            /* Updated shadow for a light background */
+            box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), 
+                        -8px -8px 16px rgba(255, 255, 255, 0.7);
 
-            /* Smooth transitions for selection changes */
             transition: transform 0.2s ease, box-shadow 0.2s ease, outline-offset 0.2s ease;
         }
 
-        /* --- 4. Selected Button Highlight --- */
+        /* --- 4. Selected Button Highlight (New Color) --- */
         .kiosk-button.selected {
-            /* A bright, clear outline that doesn't affect layout */
-            outline: 4px solid #00aaff;
+            outline: 4px solid #FFD700; /* A vibrant gold/yellow for contrast */
             outline-offset: 5px;
-
-            /* Make it pop even more */
             transform: scale(1.05);
-            box-shadow: 0 0 25px rgba(0, 170, 255, 0.5);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.7); /* Matching gold glow */
         }
-
-        /* Hide the default browser focus ring, as we have our own */
+        
         .kiosk-button:focus {
             outline: none;
         }
-
-        /* Add a subtle hover effect for mouse users */
+        
         .kiosk-button:not(.selected):hover {
             transform: scale(1.02);
+        }
+
+        /* --- 5. NEW: Navigation Controls Styling --- */
+        .nav-controls {
+            margin-top: 2rem; /* Space between grid and nav buttons */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4rem; /* Double the spacing (2rem * 2) */
+        }
+
+        .nav-button {
+            background: #4169E1; /* Royal Blue */
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 2.5rem;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+
+        .nav-button:hover {
+            background: #5a81ff; /* Lighter blue on hover */
+        }
+
+        .nav-button:active {
+            transform: scale(0.95); /* "Pushed in" effect */
         }
     </style>
 </head>
@@ -98,80 +116,78 @@
         <a href="#link8" class="kiosk-button">Button 8</a>
     </main>
 
+    <!-- NEW: Navigation Controls -->
+    <div class="nav-controls">
+        <button id="prev-btn" class="nav-button">&lt;-</button>
+        <button id="next-btn" class="nav-button">-&gt;</button>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const buttons = document.querySelectorAll('.kiosk-button');
-            const COLS = 4; // Number of columns in our grid
-            let selectedIndex = 0; // Start with the first button selected
+            const prevButton = document.getElementById('prev-btn'); // NEW
+            const nextButton = document.getElementById('next-btn'); // NEW
+            const COLS = 4;
+            let selectedIndex = 0;
 
-            // --- Function to update which button is selected ---
             function updateSelection(newIndex) {
-                // 1. Remove 'selected' class from the old button
                 buttons[selectedIndex].classList.remove('selected');
-
-                // 2. Update the index
                 selectedIndex = newIndex;
-
-                // 3. Add 'selected' class to the new button
                 const newSelectedButton = buttons[selectedIndex];
                 newSelectedButton.classList.add('selected');
-
-                // 4. Set focus for accessibility and to ensure it's the active element
                 newSelectedButton.focus();
             }
 
-            // --- Event Listener for all keyboard input ---
+            // --- Event Listener for Keyboard Input (No changes here) ---
             document.addEventListener('keydown', (event) => {
-                // Prevent default browser actions for arrow keys (like scrolling)
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
                     event.preventDefault();
                 }
 
                 let newIndex = selectedIndex;
 
-                // --- Handle Navigation Keys ---
                 switch (event.key) {
                     case 'ArrowRight':
-                        // Move right, but not off the edge of a row
-                        if ((selectedIndex + 1) % COLS !== 0) {
-                           newIndex++;
-                        }
+                        if ((selectedIndex + 1) % COLS !== 0) { newIndex++; }
                         break;
                     case 'ArrowLeft':
-                        // Move left, but not off the edge of a row
-                        if (selectedIndex % COLS !== 0) {
-                            newIndex--;
-                        }
+                        if (selectedIndex % COLS !== 0) { newIndex--; }
                         break;
-                    case 'ArrowDown':
-                        // Move down
-                        newIndex += COLS;
-                        break;
-                    case 'ArrowUp':
-                        // Move up
-                        newIndex -= COLS;
-                        break;
-                    case 'Enter':
-                        // "Click" the currently selected button
-                        buttons[selectedIndex].click();
-                        return; // Exit the function after click
+                    case 'ArrowDown': newIndex += COLS; break;
+                    case 'ArrowUp': newIndex -= COLS; break;
+                    case 'Enter': buttons[selectedIndex].click(); return;
                 }
                 
-                // --- Handle Number Hotkeys (1-8) ---
                 const numericKey = parseInt(event.key, 10);
                 if (!isNaN(numericKey) && numericKey >= 1 && numericKey <= buttons.length) {
-                    newIndex = numericKey - 1; // Array is 0-indexed, keys are 1-indexed
+                    newIndex = numericKey - 1;
                 }
 
-                // --- Validate and Apply the New Selection ---
-                // Check if the newIndex is within the valid range of buttons
                 if (newIndex >= 0 && newIndex < buttons.length) {
                     updateSelection(newIndex);
                 }
             });
 
-            // --- Initialize the interface ---
-            // Set the first button as selected when the page loads
+            // --- NEW: Event Listeners for Navigation Buttons ---
+            nextButton.addEventListener('click', () => {
+                let newIndex = selectedIndex + 1;
+                // If we're at the end, wrap around to the beginning
+                if (newIndex >= buttons.length) {
+                    newIndex = 0;
+                }
+                updateSelection(newIndex);
+            });
+
+            prevButton.addEventListener('click', () => {
+                let newIndex = selectedIndex - 1;
+                // If we're at the beginning, wrap around to the end
+                if (newIndex < 0) {
+                    newIndex = buttons.length - 1;
+                }
+                updateSelection(newIndex);
+            });
+
+            // Initialize the interface
             updateSelection(0);
         });
     </script>
