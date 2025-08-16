@@ -77,8 +77,9 @@ timestamp() { date +%Y%m%d-%H%M%S; }
 
 maybe_sudo() {
   # Use sudo for /opt operations if current user lacks write perms
-  if [[ -w "$1" ]]; then
-    shift
+  local probe="$1"
+  shift
+  if [[ -w "$probe" ]]; then
     "$@"
   else
     sudo "$@"

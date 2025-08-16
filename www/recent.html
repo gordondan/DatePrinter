@@ -1,240 +1,312 @@
-<!doctype html>
-<meta charset="utf-8" />
-<title>Recent Labels</title>
-<style>
-  :root { --ok:#0a7d29; --err:#b00020; --muted:#555; --bg:#f6f8fa; --focus:#0366d6; --focus-bg:#e8f4fd; }
-  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; margin: 24px; }
-  h1 { margin: 0 0 12px; }
-  .muted { color: var(--muted); margin-bottom: 18px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-  .card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; cursor: pointer; transition: all 0.2s ease; position: relative; }
-  .card:hover, .card:focus { border-color: var(--focus); background: var(--focus-bg); }
-  .card:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .card.selected { border-color: var(--focus); background: var(--focus-bg); box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.3); }
-  .card-content { padding: 12px; }
-  .card img { width: 100%; height: auto; border: 1px solid #eee; pointer-events: none; }
-  .meta { font-size: 12px; color: var(--muted); margin: 8px 0; pointer-events: none; }
-  .delete-btn { background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 8px; width: 100%; }
-  .delete-btn:hover, .delete-btn:focus { background: #c82333; outline: 2px solid var(--focus); }
-  .status { margin-top: 4px; font-size: 12px; }
-  .ok { color: var(--ok); }
-  .err { color: var(--err); }
-  .navigation-help { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 11px; z-index: 1000; }
-  .home-link { display: inline-block; padding: 8px 12px; background: var(--focus); color: white; text-decoration: none; border-radius: 4px; margin-bottom: 12px; }
-  .home-link:hover, .home-link:focus { background: #025aa5; color: white; outline: 2px solid var(--focus); }
-</style>
-<h1>Recent Labels</h1>
-<div class="muted">Most recent previews from logs/. Click Reprint to send the label again.</div>
-<div class="row" style="margin-bottom:12px;">
-  <a href="/app" class="home-link" id="homeLink">Home</a>
-</div>
-<div id="container" class="grid"></div>
-<div class="navigation-help">
-  Arrow Keys: Navigate • Enter: Reprint • Delete: Remove • Tab: Next Element • Home: Return to main page
-</div>
-<script>
-async function fetchRecent() {
-  const res = await fetch('/api/recent');
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.items || [];
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recent Labels</title>
+  <style>
+    /* Kiosk-like styling pulled from kiosk-buttons.html */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #e9f5e9;
+      color: #333;
+      user-select: none;
+    }
 
-async function reprint(path, statusEl) {
-  statusEl.textContent = 'Reprinting…';
-  statusEl.className = 'status';
-  const res = await fetch('/api/reprint', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path })
-  });
-  let body;
-  try { body = await res.json(); } catch { body = { error: 'Invalid response' }; }
-  if (res.ok && body.ok) {
-    statusEl.textContent = `OK (elapsed ${body.elapsed_sec.toFixed(3)}s)`;
-    statusEl.className = 'status ok';
-  } else {
-    statusEl.textContent = `Error: ${body.error || 'Unknown error'}`;
-    statusEl.className = 'status err';
-  }
-}
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
 
-async function deleteItem(path, statusEl, cardEl) {
-  statusEl.textContent = 'Deleting…';
-  statusEl.className = 'status';
-  const res = await fetch('/api/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path })
-  });
-  let body;
-  try { body = await res.json(); } catch { body = { error: 'Invalid response' }; }
-  if (res.ok && body.ok) {
-    statusEl.textContent = 'Deleted';
-    statusEl.className = 'status ok';
-    // remove the card after a short delay
-    setTimeout(() => cardEl.remove(), 300);
-  } else {
-    statusEl.textContent = `Error: ${body.error || 'Unknown error'}`;
-    statusEl.className = 'status err';
-  }
-}
+    .kiosk-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1200px;
+      width: 100%;
+      box-sizing: border-box;
+    }
 
-let selectedIndex = -1;
-let cards = [];
+    .kiosk-button {
+      aspect-ratio: 1 / 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-decoration: none;
+      background: #4169E1; /* Royal Blue */
+      border-radius: 15px;
+      box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2),
+                  -8px -8px 16px rgba(255, 255, 255, 0.7);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, outline-offset 0.2s ease;
+      overflow: hidden;
+    }
 
-function render(items) {
-  const c = document.getElementById('container');
-  c.innerHTML = '';
-  cards = [];
-  
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.tabIndex = 0;
-    card.dataset.index = i;
-    card.dataset.path = it.path;
-    
-    const cardContent = document.createElement('div');
-    cardContent.className = 'card-content';
-    
-    const img = document.createElement('img');
-    img.src = it.image_url;
-    img.alt = 'preview';
-    
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `${it.mtime_iso} • ${it.size} bytes`;
-    
-    const delBtn = document.createElement('button');
-    delBtn.className = 'delete-btn';
-    delBtn.textContent = 'Delete';
-    delBtn.tabIndex = -1;
-    
-    const status = document.createElement('div');
-    status.className = 'status';
-    
-    // Make entire card clickable for reprint
-    card.onclick = (e) => {
-      if (e.target === delBtn) return; // Don't reprint if delete button was clicked
-      reprint(it.path, status);
-    };
-    
-    card.onkeydown = (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        e.stopPropagation();
-        reprint(it.path, status);
+    .kiosk-button img {
+      width: 85%;
+      height: 85%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+    }
+
+    .kiosk-button.selected {
+      outline: 4px solid #FFD700;
+      outline-offset: 5px;
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.7);
+    }
+
+    .kiosk-button:focus { outline: none; }
+    .kiosk-button:not(.selected):hover { transform: scale(1.02); }
+
+    .nav-controls {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .nav-button {
+      background: #4169E1;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 0.6rem 2rem;
+      font-size: 1.6rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+
+    .nav-button:hover { background: #5a81ff; }
+    .nav-button:active { transform: scale(0.95); }
+
+    /* Global status banner for feedback */
+    .status-banner {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      z-index: 1000;
+      max-width: 90vw;
+      text-align: center;
+      pointer-events: none;
+    }
+    .status-ok { color: #9cff9c; }
+    .status-err { color: #ff9c9c; }
+  </style>
+</head>
+<body>
+
+  <main id="container" class="kiosk-grid" aria-label="Recent labels grid"></main>
+
+  <div class="nav-controls">
+    <button id="prev-btn" class="nav-button" aria-label="Previous">&lt;-</button>
+    <button id="next-btn" class="nav-button" aria-label="Next">-&gt;</button>
+  </div>
+
+  <div id="statusBanner" class="status-banner" role="status" aria-live="polite" aria-atomic="true" style="display:none"></div>
+
+  <script>
+    // Fetch recent items from API
+    async function fetchRecent() {
+      const res = await fetch('/api/recent');
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.items || [];
+    }
+
+    // Status banner helpers
+    const statusBanner = () => document.getElementById('statusBanner');
+    function setStatus(msg, type = '') {
+      const el = statusBanner();
+      el.textContent = msg;
+      el.style.display = 'block';
+      el.classList.remove('status-ok', 'status-err');
+      if (type === 'ok') el.classList.add('status-ok');
+      else if (type === 'err') el.classList.add('status-err');
+      clearTimeout(setStatus._t);
+      setStatus._t = setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    // API actions
+    async function reprint(path) {
+      setStatus('Reprinting…');
+      const res = await fetch('/api/reprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      });
+      let body;
+      try { body = await res.json(); } catch { body = { error: 'Invalid response' }; }
+      if (res.ok && body.ok) {
+        setStatus(`OK (elapsed ${Number(body.elapsed_sec).toFixed(3)}s)`, 'ok');
+      } else {
+        setStatus(`Error: ${body.error || 'Unknown error'}`, 'err');
       }
-    };
-    
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      deleteItem(it.path, status, card);
-    };
-    
-    card.onfocus = () => {
-      selectedIndex = i;
-      updateSelection();
-    };
-    
-    cardContent.appendChild(img);
-    cardContent.appendChild(meta);
-    cardContent.appendChild(delBtn);
-    card.appendChild(cardContent);
-    card.appendChild(status);
-    c.appendChild(card);
-    cards.push(card);
-  }
-  
-  // Set initial selection to first card if any exist
-  if (cards.length > 0) {
-    selectedIndex = 0;
-    updateSelection();
-    cards[0].focus();
-  }
-}
+    }
 
-function updateSelection() {
-  cards.forEach((card, i) => {
-    card.classList.toggle('selected', i === selectedIndex);
-  });
-}
-
-function navigate(direction) {
-  if (cards.length === 0) return;
-  
-  const oldIndex = selectedIndex;
-  if (direction === 'up') {
-    selectedIndex = Math.max(0, selectedIndex - Math.ceil(Math.sqrt(cards.length)));
-  } else if (direction === 'down') {
-    selectedIndex = Math.min(cards.length - 1, selectedIndex + Math.ceil(Math.sqrt(cards.length)));
-  } else if (direction === 'left') {
-    selectedIndex = Math.max(0, selectedIndex - 1);
-  } else if (direction === 'right') {
-    selectedIndex = Math.min(cards.length - 1, selectedIndex + 1);
-  }
-  
-  if (oldIndex !== selectedIndex) {
-    updateSelection();
-    cards[selectedIndex].focus();
-  }
-}
-
-function handleKeyPress(e) {
-  if (cards.length === 0) return;
-  
-  switch(e.key) {
-    case 'ArrowUp':
-      e.preventDefault();
-      navigate('up');
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      navigate('down');
-      break;
-    case 'ArrowLeft':
-      e.preventDefault();
-      navigate('left');
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      navigate('right');
-      break;
-    case 'Enter':
-      e.preventDefault();
-      e.stopPropagation();
-      if (selectedIndex >= 0 && selectedIndex < cards.length) {
-        const card = cards[selectedIndex];
-        const path = card.dataset.path;
-        const status = card.querySelector('.status');
-        reprint(path, status);
+    async function deleteItem(path) {
+      setStatus('Deleting…');
+      const res = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      });
+      let body;
+      try { body = await res.json(); } catch { body = { error: 'Invalid response' }; }
+      if (res.ok && body.ok) {
+        setStatus('Deleted', 'ok');
+        return true;
+      } else {
+        setStatus(`Error: ${body.error || 'Unknown error'}`, 'err');
+        return false;
       }
-      break;
-    case 'Delete':
-    case 'Backspace':
-      e.preventDefault();
-      e.stopPropagation();
-      if (selectedIndex >= 0 && selectedIndex < cards.length) {
-        const card = cards[selectedIndex];
-        const path = card.dataset.path;
-        const status = card.querySelector('.status');
-        deleteItem(path, status, card);
+    }
+
+    // UI state
+    const COLS = 4;
+    let buttons = [];
+    let items = [];
+    let selectedIndex = 0;
+
+    function updateSelection(newIndex) {
+      if (!buttons.length) return;
+      buttons[selectedIndex]?.classList.remove('selected');
+      selectedIndex = newIndex;
+      const el = buttons[selectedIndex];
+      if (el) {
+        el.classList.add('selected');
+        el.focus();
       }
-      break;
-    case 'Home':
-      e.preventDefault();
-      e.stopPropagation();
-      document.getElementById('homeLink').click();
-      break;
-  }
-}
+    }
 
-document.addEventListener('keydown', handleKeyPress);
+    function render() {
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+      buttons = [];
 
-(async function init() {
-  const items = await fetchRecent();
-  render(items);
-})();
-</script>
+      items.forEach((it, i) => {
+        const btn = document.createElement('a');
+        btn.href = '#';
+        btn.className = 'kiosk-button';
+        btn.dataset.index = String(i);
+        btn.dataset.path = it.path;
+        btn.tabIndex = 0;
+
+        const img = document.createElement('img');
+        img.src = it.image_url;
+        img.alt = 'Recent label';
+        btn.appendChild(img);
+
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          reprint(it.path);
+        });
+
+        btn.addEventListener('focus', () => {
+          const idx = Number(btn.dataset.index);
+          updateSelection(idx);
+        });
+
+        container.appendChild(btn);
+        buttons.push(btn);
+      });
+
+      if (buttons.length) updateSelection(0);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load items then render
+      items = await fetchRecent();
+      render();
+
+      const prevButton = document.getElementById('prev-btn');
+      const nextButton = document.getElementById('next-btn');
+
+      document.addEventListener('keydown', async (event) => {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+          event.preventDefault();
+        }
+
+        if (!buttons.length) return;
+
+        let newIndex = selectedIndex;
+
+        switch (event.key) {
+          case 'ArrowRight':
+            if ((selectedIndex + 1) % COLS !== 0) { newIndex++; }
+            break;
+          case 'ArrowLeft':
+            if (selectedIndex % COLS !== 0) { newIndex--; }
+            break;
+          case 'ArrowDown': newIndex += COLS; break;
+          case 'ArrowUp': newIndex -= COLS; break;
+          case 'Enter':
+            buttons[selectedIndex].click();
+            return;
+          case 'Delete':
+          case 'Backspace': {
+            const btn = buttons[selectedIndex];
+            if (!btn) return;
+            const path = btn.dataset.path;
+            const ok = await deleteItem(path);
+            if (ok) {
+              // Remove from items and DOM, then reindex
+              const idx = selectedIndex;
+              items.splice(idx, 1);
+              btn.remove();
+              buttons.splice(idx, 1);
+              // Reassign data-index
+              buttons.forEach((b, i) => { b.dataset.index = String(i); });
+              if (buttons.length) {
+                updateSelection(Math.min(idx, buttons.length - 1));
+              }
+            }
+            return;
+          }
+        }
+
+        const numericKey = parseInt(event.key, 10);
+        if (!Number.isNaN(numericKey) && numericKey >= 1 && numericKey <= buttons.length) {
+          newIndex = numericKey - 1;
+        }
+
+        if (newIndex >= 0 && newIndex < buttons.length) {
+          updateSelection(newIndex);
+        }
+      });
+
+      nextButton.addEventListener('click', () => {
+        if (!buttons.length) return;
+        let newIndex = selectedIndex + 1;
+        if (newIndex >= buttons.length) newIndex = 0;
+        updateSelection(newIndex);
+      });
+
+      prevButton.addEventListener('click', () => {
+        if (!buttons.length) return;
+        let newIndex = selectedIndex - 1;
+        if (newIndex < 0) newIndex = buttons.length - 1;
+        updateSelection(newIndex);
+      });
+
+      // Initial selection
+      if (buttons.length) updateSelection(0);
+    });
+  </script>
+</body>
+</html>
