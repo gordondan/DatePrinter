@@ -171,18 +171,18 @@ class LabelPrinterLogger:
         try:
             image.save(preview_path)
             self.log(f"Preview saved: {preview_path}")
-            # Also mirror into past-images using the same folder structure under logs
+            # Also mirror into recent using the same folder structure under logs
             try:
                 # Compute the relative session subpath under the base logs directory
                 rel = self.current_log_dir.relative_to(self.base_dir)
-                archive_root = self.base_dir.parent / "past-images"
+                archive_root = self.base_dir.parent / "recent"
                 archive_dir = archive_root / rel
                 archive_dir.mkdir(parents=True, exist_ok=True)
                 archive_path = archive_dir / filename
                 image.save(archive_path)
                 self.log(f"Preview archived: {archive_path}")
             except Exception as e:
-                self.log(f"WARNING: Could not mirror preview to past-images: {e}")
+                self.log(f"WARNING: Could not mirror preview to recent: {e}")
             return preview_path
         except Exception as e:
             self.log_error(f"Could not save preview to {preview_path}", e)
@@ -195,6 +195,27 @@ class LabelPrinterLogger:
     def get_log_file_path(self):
         """Get the current log file path."""
         return self.log_file_path
+    
+    def mirror_request_file(self, filename="request.json"):
+        """Mirror a request.json file from logs to recent."""
+        try:
+            source_path = self.current_log_dir / filename
+            if not source_path.is_file():
+                return
+                
+            # Compute the relative session subpath under the base logs directory
+            rel = self.current_log_dir.relative_to(self.base_dir)
+            archive_root = self.base_dir.parent / "recent"
+            archive_dir = archive_root / rel
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            archive_path = archive_dir / filename
+            
+            # Copy the request file
+            import shutil
+            shutil.copy2(source_path, archive_path)
+            self.log(f"Request file mirrored: {archive_path}")
+        except Exception as e:
+            self.log(f"WARNING: Could not mirror request file to recent: {e}")
 
 
 def create_logger(base_dir="logs"):

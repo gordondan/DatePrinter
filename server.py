@@ -35,13 +35,6 @@ def get_pi_label_options():
     """
     options = [
         {
-            "flag": "-l",
-            "long_flag": "--list",
-            "type": "bool",
-            "default": False,
-            "description": "Force printer selection menu (ignore default printer)",
-        },
-        {
             "flag": "-c",
             "long_flag": "--count",
             "type": "int",
@@ -166,6 +159,26 @@ def _save_request_data(preview_path: Path, request_data: dict):
         pass  # Don't fail the main operation if we can't save request data
 
 
+def _mirror_request_data_to_past_images(logs_preview_path: Path):
+    """Mirror request.json from logs to recent after label generation."""
+    try:
+        # Check if we have a logger-generated request file to mirror
+        import sys
+        sys.path.append(str(Path(__file__).parent))
+        from logger import create_logger
+        
+        # Create a temporary logger to use its mirror functionality
+        logs_root = _logs_dir()
+        if str(logs_preview_path).startswith(str(logs_root)):
+            log_dir = logs_preview_path.parent
+            # Create logger with the specific session directory
+            temp_logger = create_logger(str(logs_root))
+            temp_logger.current_log_dir = log_dir
+            temp_logger.mirror_request_file()
+    except Exception as e:
+        pass
+
+
 def _load_request_data(preview_path: Path):
     """Load the original request data for a preview if available."""
     try:
@@ -200,31 +213,62 @@ def _find_existing_template_match(new_request_data: dict) -> Path | None:
     """Find existing label with the same template (request pattern), if any."""
     try:
         import json
+        from datetime import datetime
+        
         # Normalize the new request
         normalized_new = _normalize_request_for_template_matching(new_request_data)
         
-        # Search existing labels
-        base = _past_images_dir()
-        if not base.is_dir():
-            base = _logs_dir()
-        if not base.is_dir():
+        # Only search recent directory (logs is write-once only)
+        past_images = _past_images_dir()
+        if not past_images.is_dir():
             return None
-            
-        for p in base.rglob("request.json"):
+        
+        found_files = []
+        best_match = None
+        best_timestamp = 0
+        
+        for p in past_images.rglob("request.json"):
             if "deleted" in p.parts:
                 continue
+            found_files.append(str(p))
             try:
                 with open(p, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     existing_template = data.get('normalized_template', {})
+                    original_request = data.get('original_request', {})
+                    
                     if existing_template == normalized_new:
-                        # Found a match, return the preview path
+                        # Check if this template has a fixed date that doesn't match today
+                        existing_date = original_request.get('date')
+                        new_date = new_request_data.get('date')
+                        
+                        # If either has a specific date and they don't match, skip this template
+                        if existing_date and new_date and existing_date != new_date:
+                            continue
+                        elif existing_date and not new_date:
+                            # Existing has fixed date, new wants current date - check if it matches today
+                            today = datetime.now().strftime('%Y-%m-%d')
+                            if existing_date != today:
+                                continue
+                        elif not existing_date and new_date:
+                            # Existing uses current date, new wants fixed date - don't reuse
+                            continue
+                        
+                        # Found a compatible match, check if preview exists
                         preview_path = p.with_name('label_preview.png')
                         if preview_path.is_file():
-                            return preview_path
-            except Exception:
+                            # Get the timestamp and keep the most recent match
+                            timestamp = preview_path.stat().st_mtime
+                            if timestamp > best_timestamp:
+                                best_match = preview_path
+                                best_timestamp = timestamp
+            except Exception as e:
                 continue
-    except Exception:
+        
+        if best_match:
+            print(f"Template reused: {best_match.parent.name}")
+            return best_match
+    except Exception as e:
         pass
     return None
 
@@ -247,11 +291,11 @@ def _logs_dir() -> Path:
 
 
 def _past_images_dir() -> Path:
-    return Path(os.path.dirname(__file__)) / "past-images"
+    return Path(os.path.dirname(__file__)) / "recent"
 
 
 def _list_recent_previews(limit: int = 100):
-    # Prefer past-images as the canonical recent source; fallback to logs
+    # Prefer recent as the canonical recent source; fallback to logs
     base = _past_images_dir()
     if not base.is_dir():
         base = _logs_dir()
@@ -281,7 +325,7 @@ def _list_recent_previews(limit: int = 100):
 
 
 def _safe_path_from_query(rel_path: str) -> Path | None:
-    """Ensure requested path is inside the workspace and under past-images/.* or logs/.*"""
+    """Ensure requested path is inside the workspace and under recent/.* or logs/.*"""
     try:
         base = Path(os.path.dirname(__file__))
         target = (base / rel_path).resolve()
@@ -481,7 +525,7 @@ def api_reprint():
 
 @app.route('/api/delete', methods=['POST'])
 def api_delete():
-    """Move a past image to past-images/deleted/{same folder structure}."""
+    """Move a past image to recent/deleted/{same folder structure}."""
     data = request.get_json(silent=True) or {}
     rel = data.get('path')
     if not rel:
@@ -492,7 +536,7 @@ def api_delete():
 
     base = Path(os.path.dirname(__file__))
     try:
-        # Compute path relative to past-images root; if coming from logs, map logs/.. to past-images/..
+        # Compute path relative to recent root; if coming from logs, map logs/.. to recent/..
         past_root = _past_images_dir()
         logs_root = _logs_dir()
         if str(p).startswith(str(past_root.resolve())):
@@ -634,20 +678,17 @@ def post_pi_label_print():
     if existing_match:
         # Update the existing template with new request, preserving the existing image
         _save_request_data(existing_match, data)
+        
         # Touch the file to update its timestamp so it appears at the top of recent
         import os
         os.utime(existing_match, None)
         ts = int(existing_match.stat().st_mtime)
         preview_url = f"/preview.png?ts={ts}"
         
-        # Log the template reuse for debugging
-        normalized = _normalize_request_for_template_matching(data)
-        print(f"DEBUG: Template reused for request: {normalized}")
-        
         return jsonify({
             'command': [],
             'returncode': 0,
-            'stdout': f'Using existing template: {existing_match.name} (normalized: {normalized})',
+            'stdout': 'Reusing existing template',
             'stderr': '',
             'elapsed_sec': 0.001,
             'preview_url': preview_url,
@@ -673,8 +714,17 @@ def post_pi_label_print():
         if preview_path:
             ts = int(preview_path.stat().st_mtime)
             preview_url = f"/preview.png?ts={ts}"
-            # Save the request data for template reprinting
-            _save_request_data(preview_path, data)
+            
+            # Save request data to logs (write-once) and mirror to recent
+            logs_root = _logs_dir()
+            if str(preview_path).startswith(str(logs_root)):
+                # Save to logs directory (the source)
+                _save_request_data(preview_path, data)
+                # Mirror to recent
+                _mirror_request_data_to_past_images(preview_path)
+            else:
+                # If preview is already in recent, save there directly
+                _save_request_data(preview_path, data)
 
         metrics = _parse_metrics_from_stdout(result.stdout) or _find_latest_metrics()
 

@@ -896,8 +896,6 @@ if __name__ == "__main__":
         description='Print date labels on a thermal label printer',
         epilog='Configuration is stored in printer-config.json (must be created manually)'
     )
-    parser.add_argument('-l', '--list', action='store_true', 
-                        help='Force printer selection menu (ignore default printer)')
     parser.add_argument('-c', '--count', type=int, default=1, 
                         help='Number of labels to print (default: 1)')
     parser.add_argument('-d', '--date', type=str, 
