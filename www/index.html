@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>Pi Label Printer</title>
     <!-- Link to the external stylesheet -->
     <link rel="stylesheet" href="/site.css">
@@ -135,7 +135,8 @@
                 // Handle checkboxes, which submit "on" if checked
                 if (key === 'show_date' || key === 'preview_only') {
                     printPayload[key] = true;
-                } else if (value.trim() !== '') {
+                // Check if value is a string before trying to trim it
+                } else if (typeof value === 'string' && value.trim() !== '') {
                     printPayload[key] = value;
                 }
             }
