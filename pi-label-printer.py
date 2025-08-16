@@ -816,7 +816,46 @@ def print_label(image, printer_name, config, printer_config):
 
 
 
+def _print_profiling_summary(profile):
+    """Print a concise profiling summary of major steps."""
+    def ms(sec):
+        return int(sec * 1000)
+
+    print("\n=== Profiling Summary ===")
+    if 'config_load' in profile:
+        print(f"Config load: {ms(profile.get('config_load', 0))} ms")
+    if 'bluetooth_wait' in profile and profile.get('bluetooth_wait', 0) > 0:
+        print(f"Bluetooth wait: {ms(profile.get('bluetooth_wait', 0))} ms")
+    if 'image_generation' in profile:
+        print(f"Image generation: {ms(profile.get('image_generation', 0))} ms")
+    if 'preview_save' in profile:
+        print(f"Preview save: {ms(profile.get('preview_save', 0))} ms")
+
+    # Printing details
+    prints = profile.get('print_success_times', [])
+    attempts = profile.get('print_attempt_times', [])
+    if attempts:
+        total_attempt_time = sum(attempts)
+        print(f"Print attempts: {len(attempts)} attempts, {ms(total_attempt_time)} ms total")
+    if prints:
+        total_print_time = sum(prints)
+        avg = total_print_time / len(prints)
+        print(f"Successful prints: {len(prints)}, total {ms(total_print_time)} ms, avg {ms(avg)} ms")
+    elif attempts:
+        print("Successful prints: 0")
+
+    # Total wall time
+    if 'start' in profile and 'end' in profile:
+        total = profile['end'] - profile['start']
+        print(f"Total runtime: {ms(total)} ms")
+
+
 if __name__ == "__main__":
+    _profile = {
+        'start': time.perf_counter(),
+        'print_success_times': [],
+        'print_attempt_times': [],
+    }
     # Initialize logger
     logger = create_logger()
     
@@ -847,7 +886,9 @@ if __name__ == "__main__":
     logger.log_command("label-printer.py", sys.argv[1:])
     
     # Load configuration
+    _t0 = time.perf_counter()
     config = load_config()
+    _profile['config_load'] = time.perf_counter() - _t0
     logger.log("Configuration loaded successfully")
     
     # Step 1: Get printer selection
@@ -858,9 +899,11 @@ if __name__ == "__main__":
     
     # Step 2: Try to connect to Bluetooth printer (best effort)
     if printer_config['bluetooth_device_name']:
+        _t0 = time.perf_counter()
         reconnect_bluetooth_device(printer_config['bluetooth_device_name'])
         print("Waiting for Bluetooth device to connect...")
         time.sleep(printer_config['bluetooth_wait_time'])
+        _profile['bluetooth_wait'] = time.perf_counter() - _t0
 
     # Step 3: Generate the label image
     if args.date:
@@ -879,12 +922,16 @@ if __name__ == "__main__":
     # Log label generation details
     logger.log_label_generation(date_str, args.message, args.border_message, not args.show_date, args.count)
     
+    _t0 = time.perf_counter()
     label_img = generate_label_image(date_str, date_obj, config, printer_config, args.message, args.border_message, args.side_border, args.show_date, args.image, logger)
+    _profile['image_generation'] = time.perf_counter() - _t0
     print(f"Label image generated for: {date_str}")
     logger.log_success("Label image generated", f"Date: {date_str}, Dimensions: {label_img.size}")
     
     # Save preview to log directory
+    _t0 = time.perf_counter()
     logger.save_label_preview(label_img)
+    _profile['preview_save'] = time.perf_counter() - _t0
 
     # Step 4: Print the requested number of labels (or just generate preview)
     if args.preview_only:
@@ -903,8 +950,12 @@ if __name__ == "__main__":
             for attempt in range(config['max_retries']):
                 print(f"  Print attempt {attempt + 1} of {config['max_retries']}...")
                 logger.log(f"Print attempt {attempt + 1} of {config['max_retries']}")
+                _t0 = time.perf_counter()
                 success = print_label(label_img, selected_printer, config, printer_config)
+                _elapsed = time.perf_counter() - _t0
+                _profile['print_attempt_times'].append(_elapsed)
                 if success:
+                    _profile['print_success_times'].append(_elapsed)
                     logger.log_success(f"Label {label_num} printed successfully")
                     if label_num < args.count:
                         time.sleep(config.get('pause_between_labels', 1))
@@ -917,7 +968,13 @@ if __name__ == "__main__":
                 error_msg = "Failed to print after multiple attempts. Is the printer powered on, paired, and connected?"
                 print(error_msg)
                 logger.log_error(error_msg)
+                _profile['end'] = time.perf_counter()
+                _print_profiling_summary(_profile)
                 exit(1)
     
         print(f"\nSuccessfully printed {args.count} label(s).")
         logger.log_success("Print job completed", f"{args.count} label(s) printed successfully")
+
+    # Always print profiling summary at the end
+    _profile['end'] = time.perf_counter()
+    _print_profiling_summary(_profile)
