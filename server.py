@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, Response, send_from_directory, send_file
+from werkzeug.utils import secure_filename # <-- ADDED: For sanitizing filenames
 import subprocess
 import sys
 import os
@@ -19,6 +20,14 @@ except Exception:  # noqa: E722
 
 app = Flask(__name__)
 
+# --- Configuration for File Uploads ---
+# <-- ADDED SECTION START -->
+UPLOAD_FOLDER = 'uploads' # Folder for user-uploaded images
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SECRET_KEY'] = 'a-super-secret-key-for-sessions' # Good practice for Flask apps
+# <-- ADDED SECTION END -->
+
 
 @app.route('/', methods=['GET'])
 @app.route('/index.html', methods=['GET'])
@@ -26,6 +35,10 @@ def root_index():
     """Serve the main UI at the root path for convenience."""
     return send_from_directory(os.path.join(os.path.dirname(__file__), "www"), "index.html")
 
+@app.route('/<path:filename>')
+def serve_static_files(filename):
+    """Serves any static file from the 'www' directory."""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'www'), filename)
 
 @app.route("/api/pi-label/options", methods=["GET"])
 def get_pi_label_options():
@@ -102,6 +115,12 @@ def pi_label_form():
 
 
 # --- Helpers ---
+
+# <-- ADDED HELPER FUNCTION -->
+def allowed_file(filename):
+    """Checks if the file extension is allowed for uploads."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def _find_latest_preview():
     """Search for the newest label_preview.png under logs/ and project root."""
@@ -590,6 +609,38 @@ def latest_preview_png():
     resp.headers['Expires'] = '0'
     return resp
 
+@app.route('/api/upload', methods=['POST'])
+def upload_image_file():
+    """Handles image file uploads from the user."""
+    if 'imageFile' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+    
+    file = request.files['imageFile']
+
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    # --- Server-Side Validation ---
+    if file and allowed_file(file.filename):
+        # Sanitize the filename to prevent security issues (e.g., ../../)
+        filename = secure_filename(file.filename)
+        
+        # Ensure the upload folder exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        # Save the file
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Return a success response with the path to the file
+        # The frontend will use this path for the `-i` argument
+        return jsonify({
+            'message': f'File "{filename}" uploaded successfully!',
+            'filePath': filepath
+        }), 200
+    else:
+        return jsonify({'error': 'Invalid file type. Please upload a PNG, JPG, or GIF.'}), 400
+
 
 def build_command_from_payload(payload: dict):
     """Build command list for pi-label-printer.py based on provided payload."""
@@ -657,8 +708,12 @@ def validate_payload(payload: dict):
     # image: must exist if provided
     img = payload.get('image')
     if img:
-        if not isinstance(img, str) or not os.path.isfile(img):
-            errors.append("'image' path does not exist on server")
+        # <-- MODIFIED: Check if path exists. Path can now be in 'uploads/'
+        # The frontend is responsible for providing a valid path from the upload response.
+        # This server-side check ensures the file is actually there.
+        base_path = Path(os.path.dirname(__file__))
+        if not isinstance(img, str) or not (base_path / img).is_file():
+            errors.append(f"'image' path does not exist on server: {html.escape(img)}")
 
     return (len(errors) == 0, errors)
 
@@ -807,4 +862,6 @@ def app_date_print():
 
 if __name__ == "__main__":
     # Simple dev server for local testing
+    # <-- ADDED: Ensure upload folder exists on startup -->
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(host="0.0.0.0", port=5000, debug=False)
