@@ -1,0 +1,87 @@
+:root { --lg-bg:#e9f5e9; --lg-fg:#333; --lg-accent:#4169E1; --lg-sel:#FFD700; }
+
+html, body {
+  background-color: var(--lg-bg);
+  color: var(--lg-fg);
+}
+
+/* Container that centers the grid vertically */
+.lg-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Grid of links */
+.lg-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Link tile styled like the kiosk buttons but with label aspect ratio */
+.lg-button {
+  aspect-ratio: 2.25 / 1.25; /* width / height to match label shape */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  background: var(--lg-accent);
+  border-radius: 15px;
+  box-shadow: 8px 8px 16px rgba(0,0,0,0.2), -8px -8px 16px rgba(255,255,255,0.7);
+  transition: transform .2s ease, box-shadow .2s ease, outline-offset .2s ease;
+  overflow: hidden;
+}
+
+.lg-button img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.lg-button.selected {
+  outline: 4px solid var(--lg-sel);
+  outline-offset: 5px;
+  transform: scale(1.05);
+  box-shadow: 0 0 25px rgba(255,215,0,.7);
+}
+
+.lg-button:focus { outline: none; }
+.lg-button:not(.selected):hover { transform: scale(1.02); }
+
+/* Prev / Next controls with page indicator */
+.lg-controls {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.lg-nav-btn {
+  background: var(--lg-accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1.4rem;
+  font-size: 1.4rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 5px 5px 10px rgba(0,0,0,0.2);
+  transition: transform .1s ease, background-color .2s ease;
+}
+.lg-nav-btn:hover { background: #5a81ff; }
+.lg-nav-btn:active { transform: scale(0.95); }
+.lg-page-indicator { font-weight: 600; min-width: 7ch; text-align: center; }
+
+/* Responsive tweak: if viewport is narrow, allow 2 columns */
+@media (max-width: 900px) {
+  .lg-grid { grid-template-columns: repeat(2, 1fr); }
+}

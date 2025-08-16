@@ -1,216 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Label Printer</title>
-    <!-- Link to the external stylesheet -->
-    <link rel="stylesheet" href="/site.css">
+    <link rel="stylesheet" href="/link-grid.css" />
 </head>
 <body>
 
-    <div class="container">
-        <h1>Label Printer</h1>
-        <form id="printForm">
-            <div class="form-grid">
-                <!-- Main Message -->
-                <div class="form-group full-width">
-                    <label for="message">Message</label>
-                    <input type="text" id="message" name="message" placeholder="e.g., It's leftovers enjoy it!">
-                </div>
+    <div id="mount"></div>
 
-                <!-- Border Messages -->
-                <div class="form-group">
-                    <label for="border_message">Top/Bottom Border</label>
-                    <input type="text" id="border_message" name="border_message">
-                </div>
-                <div class="form-group">
-                    <label for="side_border">Side Border</label>
-                    <input type="text" id="side_border" name="side_border">
-                </div>
+    <script src="/link-grid.js"></script>
+    <script>
+        // Configure the homepage link tiles here or fetch from an API/config.
+        // Each item: { href, image_url, title }
+        const HOME_LINKS = [
+            { href: '/custom-label.html', image_url: '/uploads/html_icon.png', title: 'Custom Label' },
+            { href: '/recent.html', image_url: '/label_preview.png', title: 'Recent Labels' },
+            { href: '/kiosk-buttons.html', image_url: '/images/kiosk/image1.png', title: 'Kiosk' }
+        ];
 
-                <!-- Count and Date -->
-                <div class="form-group">
-                    <label for="count">Count</label>
-                    <input type="number" id="count" name="count" value="1" min="1">
-                </div>
-                <div class="form-group">
-                    <label for="date">Date (optional)</label>
-                    <input type="date" id="date" name="date">
-                </div>
-
-                <!-- Image Upload (Optional) -->
-                <div class="form-group full-width">
-                    <label>Image (optional)</label>
-                    
-                    <!-- This is the initial upload box -->
-                    <label for="imageUpload" class="file-input-wrapper" id="fileInputWrapper">
-                        <div>Click to select an image</div>
-                        <div id="fileName">No file chosen</div>
-                    </label>
-                    <input type="file" id="imageUpload" name="imageFile" accept="image/png, image/jpeg, image/gif" style="display:none;">
-
-                    <!-- This container will show the preview and remove button -->
-                    <div id="uploadPreviewContainer" style="display: none;">
-                        <img id="uploadPreviewImage" src="#" alt="Your selected image">
-                        <button type="button" id="removeImageButton">Remove Image</button>
-                    </div>
-                </div>
-                
-                <!-- Boolean Flags -->
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="show_date" name="show_date">
-                    <label for="show_date">Show Date</label>
-                </div>
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="preview_only" name="preview_only" checked>
-                    <label for="preview_only">Preview Only (no printing)</label>
-                </div>
-            </div>
-
-            <button type="submit" id="submitButton" class="submit-btn">Generate Label</button>
-        </form>
-
-        <div id="statusMessage"></div>
-        <div id="previewContainer">
-            <h2>Preview</h2>
-            <img id="previewImage" src="" alt="Label Preview">
-        </div>
-    </div>
-
-<script>
-    // --- FORM ELEMENTS ---
-    const printForm = document.getElementById('printForm');
-    const submitButton = document.getElementById('submitButton');
-    const statusMessage = document.getElementById('statusMessage');
-    const previewImage = document.getElementById('previewImage');
-    
-    // --- IMAGE UPLOAD ELEMENTS ---
-    const imageUploadInput = document.getElementById('imageUpload');
-    const fileNameDisplay = document.getElementById('fileName');
-    const fileInputWrapper = document.getElementById('fileInputWrapper');
-    const uploadPreviewContainer = document.getElementById('uploadPreviewContainer');
-    const uploadPreviewImage = document.getElementById('uploadPreviewImage');
-    const removeImageButton = document.getElementById('removeImageButton');
-
-    // --- EVENT LISTENER FOR FILE SELECTION ---
-    imageUploadInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-
-        if (file && file.type.startsWith('image/')) {
-            fileNameDisplay.textContent = file.name;
-
-            // Use FileReader to get the image data for preview
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                uploadPreviewImage.src = e.target.result;
-                // Show the preview and hide the upload box
-                uploadPreviewContainer.style.display = 'block';
-                fileInputWrapper.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    // --- EVENT LISTENER FOR REMOVE BUTTON ---
-    removeImageButton.addEventListener('click', () => {
-        // Clear the file input
-        imageUploadInput.value = ''; 
-        
-        // Hide the preview and show the upload box again
-        uploadPreviewContainer.style.display = 'none';
-        fileInputWrapper.style.display = 'block';
-        
-        // Reset the file name text
-        fileNameDisplay.textContent = 'No file chosen';
-    });
-
-    // --- EVENT LISTENER FOR FORM SUBMISSION ---
-    printForm.addEventListener('submit', async (event) => {
-        event.preventDefault(); 
-        
-        submitButton.disabled = true;
-        submitButton.textContent = 'Processing...';
-        statusMessage.style.display = 'none';
-        previewImage.style.display = 'none';
-
-        let imagePathOnServer = null;
-        const imageFile = imageUploadInput.files[0];
-
-        // STEP 1: UPLOAD IMAGE (if one is selected)
-        if (imageFile) {
-            const imageUploadData = new FormData();
-            imageUploadData.append('imageFile', imageFile);
-            try {
-                const uploadResponse = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: imageUploadData
-                });
-                const uploadResult = await uploadResponse.json();
-                if (!uploadResponse.ok) throw new Error(uploadResult.error || 'Image upload failed.');
-                imagePathOnServer = uploadResult.filePath;
-                updateStatus(`Image uploaded: ${imagePathOnServer}`, 'success');
-            } catch (error) {
-                updateStatus(`Error: ${error.message}`, 'error');
-                resetButton();
-                return;
-            }
-        }
-
-        // STEP 2: GATHER ALL FORM DATA AND SEND PRINT COMMAND
-        const printPayload = {};
-        const formData = new FormData(printForm);
-        
-        for (const [key, value] of formData.entries()) {
-            if (value) {
-                if (key === 'show_date' || key === 'preview_only') {
-                    printPayload[key] = true;
-                } else if (typeof value === 'string' && value.trim() !== '') {
-                    printPayload[key] = value;
-                }
-            }
-        }
-
-        if (imagePathOnServer) {
-            printPayload.image = imagePathOnServer;
-        }
-        delete printPayload.imageFile;
-
-        try {
-            const printResponse = await fetch('/api/pi-label/print', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(printPayload)
+        document.addEventListener('DOMContentLoaded', async () => {
+            const mount = document.getElementById('mount');
+            const grid = window.createLinkGrid({
+                mount,
+                getItems: async () => HOME_LINKS,
+                cols: 4,
+                rows: 2,
+                onEnter: (item) => { if (item.href) window.location.href = item.href; }
             });
-            const printResult = await printResponse.json();
-            if (!printResponse.ok) {
-                const errorMsg = printResult.errors ? printResult.errors.join(', ') : printResult.error;
-                throw new Error(errorMsg || 'Print command failed.');
-            }
-            updateStatus('Label generated successfully!', 'success');
-            
-            if (printResult.preview_url) {
-                previewImage.src = `${printResult.preview_url}&t=${new Date().getTime()}`;
-                previewImage.style.display = 'block';
-            }
-        } catch (error) {
-            updateStatus(`Error: ${error.message}`, 'error');
-        } finally {
-            resetButton();
-        }
-    });
+            await grid.load();
+        });
+    </script>
 
-    function updateStatus(message, type) {
-        statusMessage.textContent = message;
-        statusMessage.className = `status-${type}`;
-        statusMessage.style.display = 'block';
-    }
-
-    function resetButton() {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Generate Label';
-    }
-</script>
-
-</body>
-</html>
+    </body>
+    </html>
