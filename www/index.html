@@ -42,11 +42,19 @@
                 <!-- Image Upload (Optional) -->
                 <div class="form-group full-width">
                     <label>Image (optional)</label>
-                    <label for="imageUpload" class="file-input-wrapper">
+                    
+                    <!-- This is the initial upload box -->
+                    <label for="imageUpload" class="file-input-wrapper" id="fileInputWrapper">
                         <div>Click to select an image</div>
                         <div id="fileName">No file chosen</div>
                     </label>
-                    <input type="file" id="imageUpload" name="imageFile" accept="image/png, image/jpeg, image/gif">
+                    <input type="file" id="imageUpload" name="imageFile" accept="image/png, image/jpeg, image/gif" style="display:none;">
+
+                    <!-- This container will show the preview and remove button -->
+                    <div id="uploadPreviewContainer" style="display: none;">
+                        <img id="uploadPreviewImage" src="#" alt="Your selected image">
+                        <button type="button" id="removeImageButton">Remove Image</button>
+                    </div>
                 </div>
                 
                 <!-- Boolean Flags -->
@@ -71,24 +79,55 @@
     </div>
 
 <script>
+    // --- FORM ELEMENTS ---
     const printForm = document.getElementById('printForm');
-    const imageUploadInput = document.getElementById('imageUpload');
-    const fileNameDisplay = document.getElementById('fileName');
     const submitButton = document.getElementById('submitButton');
     const statusMessage = document.getElementById('statusMessage');
     const previewImage = document.getElementById('previewImage');
+    
+    // --- IMAGE UPLOAD ELEMENTS ---
+    const imageUploadInput = document.getElementById('imageUpload');
+    const fileNameDisplay = document.getElementById('fileName');
+    const fileInputWrapper = document.getElementById('fileInputWrapper');
+    const uploadPreviewContainer = document.getElementById('uploadPreviewContainer');
+    const uploadPreviewImage = document.getElementById('uploadPreviewImage');
+    const removeImageButton = document.getElementById('removeImageButton');
 
-    // Update file name display when a file is chosen
-    imageUploadInput.addEventListener('change', () => {
-        if (imageUploadInput.files.length > 0) {
-            fileNameDisplay.textContent = imageUploadInput.files[0].name;
-        } else {
-            fileNameDisplay.textContent = 'No file chosen';
+    // --- EVENT LISTENER FOR FILE SELECTION ---
+    imageUploadInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+
+        if (file && file.type.startsWith('image/')) {
+            fileNameDisplay.textContent = file.name;
+
+            // Use FileReader to get the image data for preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadPreviewImage.src = e.target.result;
+                // Show the preview and hide the upload box
+                uploadPreviewContainer.style.display = 'block';
+                fileInputWrapper.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
         }
     });
 
+    // --- EVENT LISTENER FOR REMOVE BUTTON ---
+    removeImageButton.addEventListener('click', () => {
+        // Clear the file input
+        imageUploadInput.value = ''; 
+        
+        // Hide the preview and show the upload box again
+        uploadPreviewContainer.style.display = 'none';
+        fileInputWrapper.style.display = 'block';
+        
+        // Reset the file name text
+        fileNameDisplay.textContent = 'No file chosen';
+    });
+
+    // --- EVENT LISTENER FOR FORM SUBMISSION ---
     printForm.addEventListener('submit', async (event) => {
-        event.preventDefault(); // Stop default browser submission
+        event.preventDefault(); 
         
         submitButton.disabled = true;
         submitButton.textContent = 'Processing...';
@@ -98,56 +137,43 @@
         let imagePathOnServer = null;
         const imageFile = imageUploadInput.files[0];
 
-        // --- STEP 1: UPLOAD IMAGE (if one was selected) ---
+        // STEP 1: UPLOAD IMAGE (if one is selected)
         if (imageFile) {
             const imageUploadData = new FormData();
             imageUploadData.append('imageFile', imageFile);
-
             try {
                 const uploadResponse = await fetch('/api/upload', {
                     method: 'POST',
                     body: imageUploadData
                 });
-
                 const uploadResult = await uploadResponse.json();
-
-                if (!uploadResponse.ok) {
-                    throw new Error(uploadResult.error || 'Image upload failed.');
-                }
-                
+                if (!uploadResponse.ok) throw new Error(uploadResult.error || 'Image upload failed.');
                 imagePathOnServer = uploadResult.filePath;
                 updateStatus(`Image uploaded: ${imagePathOnServer}`, 'success');
-
             } catch (error) {
                 updateStatus(`Error: ${error.message}`, 'error');
                 resetButton();
-                return; // Stop the process
+                return;
             }
         }
 
-        // --- STEP 2: GATHER ALL FORM DATA AND SEND PRINT COMMAND ---
+        // STEP 2: GATHER ALL FORM DATA AND SEND PRINT COMMAND
         const printPayload = {};
         const formData = new FormData(printForm);
         
-        // Populate payload, skipping empty values
         for (const [key, value] of formData.entries()) {
             if (value) {
-                // Handle checkboxes, which submit "on" if checked
                 if (key === 'show_date' || key === 'preview_only') {
                     printPayload[key] = true;
-                // Check if value is a string before trying to trim it
                 } else if (typeof value === 'string' && value.trim() !== '') {
                     printPayload[key] = value;
                 }
             }
         }
 
-        // Add the uploaded image path to the payload
         if (imagePathOnServer) {
             printPayload.image = imagePathOnServer;
         }
-        
-        // Remove the form's own imageFile field from the payload
         delete printPayload.imageFile;
 
         try {
@@ -156,23 +182,17 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(printPayload)
             });
-
             const printResult = await printResponse.json();
-
             if (!printResponse.ok) {
                 const errorMsg = printResult.errors ? printResult.errors.join(', ') : printResult.error;
                 throw new Error(errorMsg || 'Print command failed.');
             }
-
             updateStatus('Label generated successfully!', 'success');
             
-            // Display the preview image
             if (printResult.preview_url) {
-                // Add a timestamp to bust the cache and ensure the new image loads
                 previewImage.src = `${printResult.preview_url}&t=${new Date().getTime()}`;
                 previewImage.style.display = 'block';
             }
-
         } catch (error) {
             updateStatus(`Error: ${error.message}`, 'error');
         } finally {
